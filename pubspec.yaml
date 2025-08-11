@@ -1,0 +1,59 @@
+name: udaan
+description: A college review platform for Nepal
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # UI Components
+  cupertino_icons: ^1.0.6
+  flutter_rating_bar: ^4.0.1
+  cached_network_image: ^3.3.0
+  
+  # State Management
+  provider: ^6.0.5
+  
+  # HTTP Requests
+  http: ^1.1.0
+  dio: ^5.3.2
+  
+  # Local Storage
+  shared_preferences: ^2.2.2
+  
+  # Image Handling
+  image_picker: ^1.0.4
+  
+  # Forms and Validation
+  email_validator: ^2.1.17
+
+  shimmer: ^3.0.0              # Loading animations
+  shared_preferences: ^2.2.2   # Local storage
+  image_picker: ^1.0.4         # Image selection
+  cached_network_image: ^3.3.0 # Image caching
+  photo_view: ^0.14.0          # Image gallery
+  pull_to_refresh: ^2.0.0      # Pull to refresh
+  flutter_rating_bar: ^4.0.1   # Star ratings
+  connectivity_plus: ^5.0.1    # Network status
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  
+  # Add assets here if needed
+  # assets:
+  #   - images/
+  
+  # Add custom fonts here if needed
+  # fonts:
+  #   - family: Roboto
+  #     fonts:
+  #       - asset: fonts/Roboto-Regular.ttf
