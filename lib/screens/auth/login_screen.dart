@@ -11,7 +11,8 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen>
     with SingleTickerProviderStateMixin {
-  final _formKey = GlobalKey<FormState>();
+  final _loginFormKey = GlobalKey<FormState>();
+  final _registerFormKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _emailController = TextEditingController();
@@ -44,8 +45,14 @@ class _LoginScreenState extends State<LoginScreen>
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(
+            24.0,
+            24.0,
+            24.0,
+            24.0 + MediaQuery.of(context).viewInsets.bottom,
+          ),
           child: Padding(
-            padding: const EdgeInsets.all(24.0),
+            padding: const EdgeInsets.all(0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -135,7 +142,7 @@ class _LoginScreenState extends State<LoginScreen>
 
   Widget _buildLoginForm() {
     return Form(
-      key: _formKey,
+      key: _loginFormKey,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -207,6 +214,7 @@ class _LoginScreenState extends State<LoginScreen>
 
   Widget _buildRegisterForm() {
     return Form(
+      key: _registerFormKey,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -342,7 +350,7 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   void _handleLogin() async {
-    if (_formKey.currentState!.validate()) {
+    if (_loginFormKey.currentState!.validate()) {
       final authService = Provider.of<AuthService>(context, listen: false);
 
       final result = await authService.login(
@@ -366,7 +374,7 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   void _handleRegister() async {
-    if (_formKey.currentState!.validate()) {
+    if (_registerFormKey.currentState!.validate()) {
       final authService = Provider.of<AuthService>(context, listen: false);
 
       final result = await authService.register(

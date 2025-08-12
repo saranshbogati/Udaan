@@ -1,12 +1,21 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
 import '../models/college.dart';
 import '../models/review.dart';
 
 class ApiService {
   // Change this to your backend URL
-  static const String baseUrl = 'http://localhost:8000'; // For development
+  static String get baseUrl {
+    if (kIsWeb) {
+      return 'http://localhost:8000';
+    }
+    if (Platform.isAndroid) {
+      return 'http://10.0.2.2:8000';
+    }
+    return 'http://localhost:8000';
+  }
   // static const String baseUrl = 'http://10.0.2.2:8000'; // For Android emulator
   // static const String baseUrl = 'https://your-backend-url.com'; // For production
 

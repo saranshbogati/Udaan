@@ -148,9 +148,31 @@ class AuthService extends ChangeNotifier {
       );
 
       if (response.statusCode == 200) {
-        // After successful registration, login automatically
-        final loginResult = await login(username, password);
-        return loginResult;
+        final data = json.decode(response.body);
+        final token = data['access_token'];
+
+        if (token != null && token is String && token.isNotEmpty) {
+          // Use the returned token to fetch user info and persist
+          final user = await _verifyToken(token);
+          if (user != null) {
+            await _saveUserData(user, token);
+            _currentUser = user;
+            _isLoggedIn = true;
+            _apiService.setAuthToken(token);
+
+            _isLoading = false;
+            notifyListeners();
+            return AuthResult(success: true, message: 'Registration successful');
+          } else {
+            // Fallback to login if token verification failed
+            final loginResult = await login(username, password);
+            return loginResult;
+          }
+        } else {
+          // Backward compatibility: if no token returned, perform login
+          final loginResult = await login(username, password);
+          return loginResult;
+        }
       } else {
         final errorData = json.decode(response.body);
         _isLoading = false;
