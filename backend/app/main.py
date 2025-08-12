@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, status, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+from sqlalchemy.sql import func
 from typing import List, Optional
 from datetime import timedelta, datetime
 import math
@@ -30,7 +31,7 @@ app.add_middleware(
 
 
 # Auth endpoints
-@app.post("/auth/register", response_model=UserResponse)
+@app.post("/auth/register", response_model=AuthResponse)
 def register_user(user: UserCreate, db: Session = Depends(get_db)):
     # Check if user exists
     db_user = (
@@ -55,7 +56,13 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(db_user)
 
-    return db_user
+    # Create access token for the newly registered user
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": db_user.username}, expires_delta=access_token_expires
+    )
+
+    return {"access_token": access_token, "token_type": "bearer", "user": db_user}
 
 
 @app.post("/auth/login", response_model=Token)

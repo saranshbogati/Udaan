@@ -12,6 +12,7 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
+  final _usernameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -22,6 +23,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   void dispose() {
     _nameController.dispose();
+    _usernameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
@@ -34,10 +36,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final authService = Provider.of<AuthService>(context, listen: false);
 
       final authResult = await authService.register(
-        _nameController.text.trim(),
+        _usernameController.text.trim(),
         _emailController.text.trim(),
         _passwordController.text,
-        _phoneController.text.trim(),
+        _nameController.text.trim(),
       );
 
       if (authResult.success && mounted) {
@@ -64,7 +66,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
+          padding: EdgeInsets.fromLTRB(
+            24.0,
+            24.0,
+            24.0,
+            24.0 + MediaQuery.of(context).viewInsets.bottom,
+          ),
           child: Form(
             key: _formKey,
             child: Column(
@@ -110,6 +117,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     }
                     if (value.length < 2) {
                       return 'Name must be at least 2 characters';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                // Username Field
+                TextFormField(
+                  controller: _usernameController,
+                  textInputAction: TextInputAction.next,
+                  decoration: const InputDecoration(
+                    labelText: 'Username',
+                    prefixIcon: Icon(Icons.alternate_email),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please choose a username';
+                    }
+                    if (value.length < 3) {
+                      return 'Username must be at least 3 characters';
                     }
                     return null;
                   },
