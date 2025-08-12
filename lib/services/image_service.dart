@@ -1,5 +1,4 @@
 import 'package:image_picker/image_picker.dart';
-import 'dart:io';
 
 class ImageService {
   static final ImagePicker _picker = ImagePicker();

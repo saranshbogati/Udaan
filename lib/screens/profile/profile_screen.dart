@@ -16,20 +16,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Profile'),
-        automaticallyImplyLeading: false,
         actions: [
-          IconButton(
-            onPressed: _showSettingsDialog,
-            icon: const Icon(Icons.settings_outlined),
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'logout') {
+                _handleLogout();
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'logout',
+                child: ListTile(
+                  leading: Icon(Icons.logout),
+                  title: Text('Logout'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+            ],
           ),
         ],
       ),
       body: Consumer<AuthService>(
         builder: (context, authService, _) {
           final user = authService.currentUser;
+
           if (user == null) {
             return const Center(
-              child: Text('Please log in to view your profile'),
+              child: Text('No user data available'),
             );
           }
 
@@ -42,12 +55,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _buildProfileHeader(user),
                 const SizedBox(height: 24),
 
+                // Profile Options
+                _buildProfileOptions(),
+                const SizedBox(height: 24),
+
                 // Stats Section
                 _buildStatsSection(),
                 const SizedBox(height: 24),
 
-                // Menu Items
-                _buildMenuSection(context, authService),
+                // Settings Section
+                _buildSettingsSection(),
               ],
             ),
           );
@@ -61,85 +78,175 @@ class _ProfileScreenState extends State<ProfileScreen> {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
+          colors: [
+            Theme.of(context).primaryColor,
+            Theme.of(context).primaryColor.withOpacity(0.7),
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Colors.blue.shade400,
-            Colors.blue.shade600,
-          ],
         ),
         borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Theme.of(context).primaryColor.withOpacity(0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
       child: Column(
         children: [
-          // Avatar
+          // Profile Picture
           CircleAvatar(
-            radius: 40,
-            backgroundColor: Colors.white,
-            child: user.profileImage != null
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(40),
+            radius: 50,
+            backgroundColor: Colors.white.withOpacity(0.2),
+            child: user.profilePicture != null
+                ? ClipOval(
                     child: Image.network(
-                      user.profileImage!,
-                      width: 80,
-                      height: 80,
+                      user.profilePicture!,
+                      width: 100,
+                      height: 100,
                       fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Text(
+                          user.name,
+                          style: const TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        );
+                      },
                     ),
                   )
                 : Text(
-                    user.name[0].toUpperCase(),
-                    style: TextStyle(
+                    user.name,
+                    style: const TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
-                      color: Colors.blue.shade600,
+                      color: Colors.white,
                     ),
                   ),
           ),
           const SizedBox(height: 16),
 
-          // Name
-          Text(
-            user.name,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
+          // User Name
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                user.username,
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              if (user.isVerified) ...[
+                const SizedBox(width: 8),
+                const Icon(
+                  Icons.verified,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ],
+            ],
           ),
           const SizedBox(height: 4),
 
-          // Email
+          // Username and Email
           Text(
-            user.email,
-            style: const TextStyle(
-              fontSize: 14,
-              color: Colors.white70,
+            '@${user.username}',
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.white.withOpacity(0.8),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
+          Text(
+            user.email,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.white.withOpacity(0.7),
+            ),
+          ),
+          const SizedBox(height: 16),
 
-          // College info if available
-          if (user.collegeName != null) ...[
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 6,
-              ),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                '${user.collegeName} • ${user.graduationYear ?? 'Current'}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
+          // Edit Profile Button
+          ElevatedButton(
+            onPressed: () {
+              // TODO: Navigate to edit profile screen
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Edit profile feature coming soon!'),
                 ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: Theme.of(context).primaryColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
               ),
             ),
-          ],
+            child: const Text('Edit Profile'),
+          ),
         ],
       ),
+    );
+  }
+
+  Widget _buildProfileOptions() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'My Activity',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+        ),
+        const SizedBox(height: 12),
+        _buildOptionTile(
+          icon: Icons.rate_review,
+          title: 'My Reviews',
+          subtitle: 'View and manage your reviews',
+          onTap: () {
+            // TODO: Navigate to user reviews
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('My Reviews feature coming soon!'),
+              ),
+            );
+          },
+        ),
+        _buildOptionTile(
+          icon: Icons.favorite,
+          title: 'Liked Reviews',
+          subtitle: 'Reviews you have liked',
+          onTap: () {
+            // TODO: Navigate to liked reviews
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Liked Reviews feature coming soon!'),
+              ),
+            );
+          },
+        ),
+        _buildOptionTile(
+          icon: Icons.bookmark,
+          title: 'Saved Colleges',
+          subtitle: 'Your bookmarked colleges',
+          onTap: () {
+            // TODO: Navigate to saved colleges
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Saved Colleges feature coming soon!'),
+              ),
+            );
+          },
+        ),
+      ],
     );
   }
 
@@ -147,53 +254,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Colors.grey[50],
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 6,
-            offset: const Offset(0, 3),
-          ),
-        ],
+        border: Border.all(color: Colors.grey.shade200),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Your Activity',
+            'Your Stats',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
           ),
           const SizedBox(height: 16),
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              Expanded(
-                child: _buildStatItem(
-                  icon: Icons.rate_review,
-                  label: 'Reviews',
-                  value: '3',
-                  color: Colors.blue,
-                ),
-              ),
-              Expanded(
-                child: _buildStatItem(
-                  icon: Icons.thumb_up,
-                  label: 'Helpful',
-                  value: '23',
-                  color: Colors.green,
-                ),
-              ),
-              Expanded(
-                child: _buildStatItem(
-                  icon: Icons.visibility,
-                  label: 'Views',
-                  value: '156',
-                  color: Colors.orange,
-                ),
-              ),
+              _buildStatItem('Reviews', '0'),
+              _buildStatItem('Likes', '0'),
+              _buildStatItem('Helped', '0'),
             ],
           ),
         ],
@@ -201,311 +281,200 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildStatItem({
-    required IconData icon,
-    required String label,
-    required String value,
-    required Color color,
-  }) {
+  Widget _buildStatItem(String label, String value) {
     return Column(
       children: [
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(
-            icon,
-            color: color,
-            size: 24,
-          ),
-        ),
-        const SizedBox(height: 8),
         Text(
           value,
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
+          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).primaryColor,
+              ),
         ),
-        const SizedBox(height: 2),
+        const SizedBox(height: 4),
         Text(
           label,
           style: TextStyle(
             color: Colors.grey[600],
-            fontSize: 12,
+            fontWeight: FontWeight.w500,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildMenuSection(BuildContext context, AuthService authService) {
+  Widget _buildSettingsSection() {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildMenuItem(
-          icon: Icons.person_outline,
-          title: 'Edit Profile',
-          subtitle: 'Update your personal information',
-          onTap: () => _showEditProfileDialog(),
+        Text(
+          'Settings',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
         ),
-        _buildMenuItem(
-          icon: Icons.rate_review_outlined,
-          title: 'My Reviews',
-          subtitle: 'View and manage your reviews',
-          onTap: () {
-            // TODO: Navigate to my reviews screen
-          },
-        ),
-        _buildMenuItem(
-          icon: Icons.favorite_outline,
-          title: 'Saved Colleges',
-          subtitle: 'Colleges you\'ve bookmarked',
-          onTap: () {
-            // TODO: Navigate to saved colleges screen
-          },
-        ),
-        _buildMenuItem(
-          icon: Icons.notifications_outlined,
+        const SizedBox(height: 12),
+
+        _buildOptionTile(
+          icon: Icons.notifications,
           title: 'Notifications',
-          subtitle: 'Manage notification preferences',
+          subtitle: 'Manage your notification preferences',
           onTap: () {
-            // TODO: Navigate to notifications settings
+            // TODO: Navigate to notification settings
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Notification settings coming soon!'),
+              ),
+            );
           },
         ),
-        _buildMenuItem(
-          icon: Icons.help_outline,
+
+        _buildOptionTile(
+          icon: Icons.privacy_tip,
+          title: 'Privacy',
+          subtitle: 'Privacy and data settings',
+          onTap: () {
+            // TODO: Navigate to privacy settings
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Privacy settings coming soon!'),
+              ),
+            );
+          },
+        ),
+
+        _buildOptionTile(
+          icon: Icons.help,
           title: 'Help & Support',
           subtitle: 'Get help and contact support',
           onTap: () {
             // TODO: Navigate to help screen
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Help & Support coming soon!'),
+              ),
+            );
           },
         ),
-        _buildMenuItem(
-          icon: Icons.info_outline,
+
+        _buildOptionTile(
+          icon: Icons.info,
           title: 'About',
           subtitle: 'App version and information',
-          onTap: () => _showAboutDialog(context),
+          onTap: () {
+            _showAboutDialog();
+          },
         ),
+
         const SizedBox(height: 16),
-        _buildMenuItem(
-          icon: Icons.logout,
-          title: 'Sign Out',
-          subtitle: 'Sign out of your account',
-          onTap: () => _showLogoutDialog(authService),
-          isDestructive: true,
+
+        // Logout Button
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: _handleLogout,
+            icon: const Icon(Icons.logout),
+            label: const Text('Logout'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+            ),
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildMenuItem({
+  Widget _buildOptionTile({
     required IconData icon,
     required String title,
     required String subtitle,
     required VoidCallback onTap,
-    bool isDestructive = false,
   }) {
-    return Container(
+    return Card(
       margin: const EdgeInsets.only(bottom: 8),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: ListTile(
         leading: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: isDestructive
-                ? Colors.red.withOpacity(0.1)
-                : Colors.grey.withOpacity(0.1),
+            color: Theme.of(context).primaryColor.withOpacity(0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(
             icon,
-            color: isDestructive ? Colors.red : Colors.grey[700],
+            color: Theme.of(context).primaryColor,
           ),
         ),
         title: Text(
           title,
-          style: TextStyle(
-            fontWeight: FontWeight.w500,
-            color: isDestructive ? Colors.red : null,
-          ),
+          style: const TextStyle(fontWeight: FontWeight.w600),
         ),
         subtitle: Text(
           subtitle,
-          style: TextStyle(
-            color: Colors.grey[600],
-            fontSize: 13,
-          ),
+          style: TextStyle(color: Colors.grey[600]),
         ),
-        trailing: Icon(
-          Icons.chevron_right,
-          color: Colors.grey[400],
-        ),
+        trailing: const Icon(Icons.chevron_right),
         onTap: onTap,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
       ),
     );
   }
 
-  void _showSettingsDialog() {
-    showDialog(
+  void _handleLogout() async {
+    final shouldLogout = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Settings'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.dark_mode_outlined),
-              title: const Text('Dark Mode'),
-              trailing: Switch(
-                value: false, // TODO: Implement theme switching
-                onChanged: (value) {
-                  // TODO: Toggle dark mode
-                },
-              ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.language_outlined),
-              title: const Text('Language'),
-              subtitle: const Text('English'),
-              onTap: () {
-                // TODO: Show language selection
-              },
-            ),
-          ],
-        ),
+        title: const Text('Logout'),
+        content: const Text('Are you sure you want to logout?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showEditProfileDialog() {
-    final nameController = TextEditingController();
-    final phoneController = TextEditingController();
-    final collegeController = TextEditingController();
-    final graduationYearController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit Profile'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Full Name',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: phoneController,
-                decoration: const InputDecoration(
-                  labelText: 'Phone Number',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.phone,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: collegeController,
-                decoration: const InputDecoration(
-                  labelText: 'College/University',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: graduationYearController,
-                decoration: const InputDecoration(
-                  labelText: 'Graduation Year',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.number,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () => Navigator.of(context).pop(false),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
-              // TODO: Save profile changes
-              Navigator.of(context).pop();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Profile updated successfully!'),
-                  backgroundColor: Colors.green,
-                ),
-              );
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showAboutDialog(BuildContext context) {
-    showAboutDialog(
-      context: context,
-      applicationName: 'Nepal College Review',
-      applicationVersion: '1.0.0',
-      applicationIcon: Icon(
-        Icons.school,
-        size: 48,
-        color: Theme.of(context).primaryColor,
-      ),
-      children: [
-        const Text(
-          'Nepal College Review helps students find and review colleges and universities across Nepal.',
-        ),
-        const SizedBox(height: 16),
-        const Text(
-          'Made with ❤️ for Nepali students',
-          style: TextStyle(fontStyle: FontStyle.italic),
-        ),
-      ],
-    );
-  }
-
-  void _showLogoutDialog(AuthService authService) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Sign Out'),
-        content: const Text('Are you sure you want to sign out?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.of(context).pop();
-              await authService.logout();
-            },
+            onPressed: () => Navigator.of(context).pop(true),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
             ),
-            child: const Text('Sign Out'),
+            child: const Text('Logout'),
           ),
         ],
       ),
+    );
+
+    if (shouldLogout == true) {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      await authService.logout();
+    }
+  }
+
+  void _showAboutDialog() {
+    showAboutDialog(
+      context: context,
+      applicationName: 'Udaan',
+      applicationVersion: '1.0.0',
+      applicationIcon: Container(
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(
+          color: Theme.of(context).primaryColor,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Icon(
+          Icons.school,
+          color: Colors.white,
+          size: 24,
+        ),
+      ),
+      children: [
+        const Text('Find the perfect college for your future in Nepal.'),
+        const SizedBox(height: 16),
+        const Text('Made with ❤️ for students in Nepal'),
+      ],
     );
   }
 }

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
+import 'package:provider/provider.dart';
+import 'package:udaan/services/api_service.dart';
+import 'package:udaan/services/auth_service.dart';
 import '../../models/college.dart';
 import '../../models/review.dart';
 
@@ -7,9 +10,9 @@ class CollegeDetailScreen extends StatefulWidget {
   final College college;
 
   const CollegeDetailScreen({
-    Key? key,
+    super.key,
     required this.college,
-  }) : super(key: key);
+  });
 
   @override
   State<CollegeDetailScreen> createState() => _CollegeDetailScreenState();
@@ -35,65 +38,156 @@ class _CollegeDetailScreenState extends State<CollegeDetailScreen>
   }
 
   Future<void> _loadReviews() async {
-    // Simulate API call
-    await Future.delayed(const Duration(seconds: 1));
+    setState(() {
+      _isLoading = true;
+    });
 
-    // Mock reviews data
-    _reviews = [
-      Review(
-        id: 1,
+    try {
+      final apiService = ApiService();
+      final result = await apiService.getCollegeReviews(widget.college.id);
+
+      if (result.isSuccess) {
+        setState(() {
+          _reviews = result.data!.reviews;
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _isLoading = false;
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to load reviews: ${result.error}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading reviews: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _createReview({
+    required double rating,
+    required String title,
+    required String content,
+    String? program,
+    String? graduationYear,
+  }) async {
+    final authService = Provider.of<AuthService>(context, listen: false);
+
+    if (!authService.isLoggedIn) {
+      Navigator.pushNamed(context, '/login');
+      return;
+    }
+
+    try {
+      final apiService = ApiService();
+
+      final newReview = Review(
+        id: 0,
         collegeId: widget.college.id,
-        userId: 1,
-        userName: 'Aditya Sharma',
-        rating: 4.5,
-        title: 'Great college with excellent facilities',
-        content:
-            'I studied here for 4 years and had an amazing experience. The professors are knowledgeable and the campus facilities are top-notch.',
-        images: [],
-        createdAt: DateTime.now().subtract(const Duration(days: 30)),
-        program: 'Computer Engineering',
-        graduationYear: '2023',
-        isVerified: true,
-        likesCount: 12,
-        isLikedByCurrentUser: false,
-      ),
-      Review(
-        id: 2,
-        collegeId: widget.college.id,
-        userId: 2,
-        userName: 'Priya Patel',
-        rating: 4.0,
-        title: 'Good academic environment',
-        content:
-            'The academic standards are high and there are many opportunities for extracurricular activities. The library is well-stocked.',
-        images: [],
-        createdAt: DateTime.now().subtract(const Duration(days: 15)),
-        program: 'Business Administration',
-        graduationYear: '2024',
-        isVerified: true,
-        likesCount: 8,
-        isLikedByCurrentUser: true,
-      ),
-      Review(
-        id: 3,
-        collegeId: widget.college.id,
-        userId: 3,
-        userName: 'Rohan Thapa',
-        rating: 3.5,
-        title: 'Decent college but room for improvement',
-        content:
-            'The college is okay but could improve on infrastructure and modernize the curriculum.',
-        images: [],
-        createdAt: DateTime.now().subtract(const Duration(days: 7)),
-        program: 'Civil Engineering',
+        userId: authService.currentUser!.id,
+        userName: authService.currentUser!.username,
+        rating: rating,
+        title: title,
+        content: content,
+        program: program,
+        graduationYear: graduationYear,
+        createdAt: DateTime.now(),
         isVerified: false,
-        likesCount: 3,
+        likesCount: 0,
         isLikedByCurrentUser: false,
-      ),
-    ];
+      );
 
-    _isLoading = false;
-    setState(() {});
+      final result = await apiService.createReview(newReview);
+
+      if (result.isSuccess) {
+        await _loadReviews();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Review submitted successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to submit review: ${result.error}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error submitting review: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _toggleReviewLike(int reviewId, int currentIndex) async {
+    final authService = Provider.of<AuthService>(context, listen: false);
+
+    if (!authService.isLoggedIn) {
+      Navigator.pushNamed(context, '/login');
+      return;
+    }
+
+    try {
+      final apiService = ApiService();
+      final result = await apiService.toggleReviewLike(reviewId);
+
+      if (result.isSuccess) {
+        setState(() {
+          _reviews[currentIndex] = _reviews[currentIndex].copyWith(
+            likesCount: result.data!.likesCount,
+            isLikedByCurrentUser: result.data!.liked,
+          );
+        });
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to update like: ${result.error}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating like: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -101,7 +195,6 @@ class _CollegeDetailScreenState extends State<CollegeDetailScreen>
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          // App Bar with Hero Image
           SliverAppBar(
             expandedHeight: 200,
             pinned: true,
@@ -134,21 +227,14 @@ class _CollegeDetailScreenState extends State<CollegeDetailScreen>
               ),
             ),
           ),
-
-          // Content
           SliverToBoxAdapter(
             child: Column(
               children: [
-                // Basic Info
                 _buildBasicInfo(),
-
-                // Tab Bar
                 _buildTabBar(),
               ],
             ),
           ),
-
-          // Tab Content
           SliverFillRemaining(
             child: TabBarView(
               controller: _tabController,
@@ -175,10 +261,9 @@ class _CollegeDetailScreenState extends State<CollegeDetailScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Rating and Reviews Summary
           Row(
             children: [
-              if (widget.college.averageRating != null) ...[
+              ...[
                 Text(
                   widget.college.averageRating!.toStringAsFixed(1),
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
@@ -197,23 +282,15 @@ class _CollegeDetailScreenState extends State<CollegeDetailScreen>
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  '(${widget.college.reviewCount} reviews)',
+                  '(${widget.college.totalReviews ?? 0} reviews)',
                   style: TextStyle(
                     color: Colors.grey[600],
                   ),
                 ),
-              ] else
-                Text(
-                  'No reviews yet',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                  ),
-                ),
+              ],
             ],
           ),
           const SizedBox(height: 16),
-
-          // Location
           Row(
             children: [
               Icon(
@@ -223,7 +300,7 @@ class _CollegeDetailScreenState extends State<CollegeDetailScreen>
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  widget.college.address ?? widget.college.location,
+                  widget.college.location,
                   style: TextStyle(
                     color: Colors.grey[700],
                   ),
@@ -232,8 +309,6 @@ class _CollegeDetailScreenState extends State<CollegeDetailScreen>
             ],
           ),
           const SizedBox(height: 8),
-
-          // Type
           Row(
             children: [
               Icon(
@@ -247,17 +322,19 @@ class _CollegeDetailScreenState extends State<CollegeDetailScreen>
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: widget.college.type == 'university'
+                  color: (widget.college.collegeType ?? '').toLowerCase() ==
+                          'university'
                       ? Colors.blue.shade100
                       : Colors.green.shade100,
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Text(
-                  widget.college.type.toUpperCase(),
+                  widget.college.collegeType ?? 'College',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
-                    color: widget.college.type == 'university'
+                    color: (widget.college.collegeType ?? '').toLowerCase() ==
+                            'university'
                         ? Colors.blue.shade700
                         : Colors.green.shade700,
                   ),
@@ -293,8 +370,8 @@ class _CollegeDetailScreenState extends State<CollegeDetailScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Description
-          if (widget.college.description != null) ...[
+          if (widget.college.description != null &&
+              widget.college.description!.isNotEmpty) ...[
             Text(
               'About',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -311,8 +388,6 @@ class _CollegeDetailScreenState extends State<CollegeDetailScreen>
             ),
             const SizedBox(height: 24),
           ],
-
-          // Programs
           Text(
             'Programs Offered',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -320,33 +395,40 @@ class _CollegeDetailScreenState extends State<CollegeDetailScreen>
                 ),
           ),
           const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: widget.college.programs.map((program) {
-              return Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.blue.shade200),
-                ),
-                child: Text(
-                  program,
-                  style: TextStyle(
-                    color: Colors.blue.shade700,
-                    fontWeight: FontWeight.w500,
+          if (widget.college.programs.isNotEmpty)
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: widget.college.programs.map((program) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
                   ),
-                ),
-              );
-            }).toList(),
-          ),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: Text(
+                    program,
+                    style: TextStyle(
+                      color: Colors.blue.shade700,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                );
+              }).toList(),
+            )
+          else
+            Text(
+              'No programs listed',
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontStyle: FontStyle.italic,
+              ),
+            ),
           const SizedBox(height: 24),
-
-          // Establishment Year
           if (widget.college.establishedYear != null) ...[
             Text(
               'Established',
@@ -356,7 +438,7 @@ class _CollegeDetailScreenState extends State<CollegeDetailScreen>
             ),
             const SizedBox(height: 8),
             Text(
-              widget.college.establishedYear!.year.toString(),
+              widget.college.establishedYear!.toString(),
               style: TextStyle(
                 color: Colors.grey[700],
                 fontSize: 16,
@@ -364,9 +446,8 @@ class _CollegeDetailScreenState extends State<CollegeDetailScreen>
             ),
             const SizedBox(height: 24),
           ],
-
-          // Affiliated University
-          if (widget.college.affiliatedUniversity != null) ...[
+          if (widget.college.affiliation != null &&
+              widget.college.affiliation!.isNotEmpty) ...[
             Text(
               'Affiliated University',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -375,7 +456,7 @@ class _CollegeDetailScreenState extends State<CollegeDetailScreen>
             ),
             const SizedBox(height: 8),
             Text(
-              widget.college.affiliatedUniversity!,
+              widget.college.affiliation!,
               style: TextStyle(
                 color: Colors.grey[700],
                 fontSize: 16,
@@ -426,7 +507,10 @@ class _CollegeDetailScreenState extends State<CollegeDetailScreen>
       padding: const EdgeInsets.all(16),
       itemCount: _reviews.length,
       itemBuilder: (context, index) {
-        return ReviewCard(review: _reviews[index]);
+        return ReviewCard(
+          review: _reviews[index],
+          onLikePressed: () => _toggleReviewLike(_reviews[index].id, index),
+        );
       },
     );
   }
@@ -444,36 +528,29 @@ class _CollegeDetailScreenState extends State<CollegeDetailScreen>
                 ),
           ),
           const SizedBox(height: 24),
-
-          // Phone
-          if (widget.college.phone != null)
+          if (widget.college.phone != null && widget.college.phone!.isNotEmpty)
             _buildContactItem(
               Icons.phone_outlined,
               'Phone',
               widget.college.phone!,
             ),
-
-          // Email
-          if (widget.college.email != null)
+          if (widget.college.email != null && widget.college.email!.isNotEmpty)
             _buildContactItem(
               Icons.email_outlined,
               'Email',
               widget.college.email!,
             ),
-
-          // Website
-          if (widget.college.website != null)
+          if (widget.college.website != null &&
+              widget.college.website!.isNotEmpty)
             _buildContactItem(
               Icons.web_outlined,
               'Website',
               widget.college.website!,
             ),
-
-          // Address
           _buildContactItem(
             Icons.location_on_outlined,
             'Address',
-            widget.college.address ?? widget.college.location,
+            widget.college.location,
           ),
         ],
       ),
@@ -524,15 +601,23 @@ class _CollegeDetailScreenState extends State<CollegeDetailScreen>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => WriteReviewBottomSheet(college: widget.college),
+      builder: (context) => WriteReviewBottomSheet(
+        college: widget.college,
+        onReviewSubmitted: _createReview,
+      ),
     );
   }
 }
 
 class ReviewCard extends StatelessWidget {
   final Review review;
+  final VoidCallback onLikePressed;
 
-  const ReviewCard({Key? key, required this.review}) : super(key: key);
+  const ReviewCard({
+    super.key,
+    required this.review,
+    required this.onLikePressed,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -543,13 +628,14 @@ class ReviewCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
             Row(
               children: [
                 CircleAvatar(
                   backgroundColor: Colors.blue.shade100,
                   child: Text(
-                    review.userName[0].toUpperCase(),
+                    review.userName.isNotEmpty
+                        ? review.userName[0].toUpperCase()
+                        : 'U',
                     style: TextStyle(
                       color: Colors.blue.shade700,
                       fontWeight: FontWeight.bold,
@@ -600,8 +686,6 @@ class ReviewCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-
-            // Rating
             Row(
               children: [
                 RatingBarIndicator(
@@ -621,8 +705,6 @@ class ReviewCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-
-            // Title
             Text(
               review.title,
               style: const TextStyle(
@@ -631,8 +713,6 @@ class ReviewCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-
-            // Content
             Text(
               review.content,
               style: TextStyle(
@@ -641,14 +721,10 @@ class ReviewCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-
-            // Actions
             Row(
               children: [
                 InkWell(
-                  onTap: () {
-                    // TODO: Toggle like
-                  },
+                  onTap: onLikePressed,
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -722,9 +798,19 @@ class ReviewCard extends StatelessWidget {
 
 class WriteReviewBottomSheet extends StatefulWidget {
   final College college;
+  final Function({
+    required double rating,
+    required String title,
+    required String content,
+    String? program,
+    String? graduationYear,
+  }) onReviewSubmitted;
 
-  const WriteReviewBottomSheet({Key? key, required this.college})
-      : super(key: key);
+  const WriteReviewBottomSheet({
+    super.key,
+    required this.college,
+    required this.onReviewSubmitted,
+  });
 
   @override
   State<WriteReviewBottomSheet> createState() => _WriteReviewBottomSheetState();
@@ -734,12 +820,17 @@ class _WriteReviewBottomSheetState extends State<WriteReviewBottomSheet> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _contentController = TextEditingController();
+  final _programController = TextEditingController();
+  final _graduationYearController = TextEditingController();
   double _rating = 0;
+  bool _isSubmitting = false;
 
   @override
   void dispose() {
     _titleController.dispose();
     _contentController.dispose();
+    _programController.dispose();
+    _graduationYearController.dispose();
     super.dispose();
   }
 
@@ -753,7 +844,6 @@ class _WriteReviewBottomSheetState extends State<WriteReviewBottomSheet> {
       ),
       child: Column(
         children: [
-          // Handle
           Container(
             width: 40,
             height: 4,
@@ -763,8 +853,6 @@ class _WriteReviewBottomSheetState extends State<WriteReviewBottomSheet> {
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-
-          // Header
           Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
@@ -783,7 +871,6 @@ class _WriteReviewBottomSheetState extends State<WriteReviewBottomSheet> {
               ],
             ),
           ),
-
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -792,7 +879,6 @@ class _WriteReviewBottomSheetState extends State<WriteReviewBottomSheet> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // College info
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
@@ -818,8 +904,6 @@ class _WriteReviewBottomSheetState extends State<WriteReviewBottomSheet> {
                       ),
                     ),
                     const SizedBox(height: 24),
-
-                    // Rating
                     Text(
                       'Overall Rating',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -847,8 +931,6 @@ class _WriteReviewBottomSheetState extends State<WriteReviewBottomSheet> {
                       ),
                     ),
                     const SizedBox(height: 24),
-
-                    // Title
                     Text(
                       'Review Title',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -869,8 +951,6 @@ class _WriteReviewBottomSheetState extends State<WriteReviewBottomSheet> {
                       },
                     ),
                     const SizedBox(height: 16),
-
-                    // Content
                     Text(
                       'Your Review',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -896,24 +976,52 @@ class _WriteReviewBottomSheetState extends State<WriteReviewBottomSheet> {
                         return null;
                       },
                     ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Program (Optional)',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _programController,
+                      decoration: const InputDecoration(
+                        hintText: 'e.g. Computer Science, MBA...',
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Graduation Year (Optional)',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _graduationYearController,
+                      decoration: const InputDecoration(
+                        hintText: 'e.g. 2023, Current...',
+                      ),
+                    ),
                     const SizedBox(height: 24),
                   ],
                 ),
               ),
             ),
           ),
-
-          // Submit button
           Container(
             padding: const EdgeInsets.all(16),
             child: SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _submitReview,
-                child: const Text(
-                  'Submit Review',
-                  style: TextStyle(fontSize: 16),
-                ),
+                onPressed: _isSubmitting ? null : _submitReview,
+                child: _isSubmitting
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text(
+                        'Submit Review',
+                        style: TextStyle(fontSize: 16),
+                      ),
               ),
             ),
           ),
@@ -922,7 +1030,7 @@ class _WriteReviewBottomSheetState extends State<WriteReviewBottomSheet> {
     );
   }
 
-  void _submitReview() {
+  void _submitReview() async {
     if (_rating == 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -934,15 +1042,29 @@ class _WriteReviewBottomSheetState extends State<WriteReviewBottomSheet> {
     }
 
     if (_formKey.currentState!.validate()) {
-      // TODO: Submit review to API
+      setState(() {
+        _isSubmitting = true;
+      });
 
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Review submitted successfully!'),
-          backgroundColor: Colors.green,
-        ),
+      await widget.onReviewSubmitted(
+        rating: _rating,
+        title: _titleController.text.trim(),
+        content: _contentController.text.trim(),
+        program: _programController.text.trim().isEmpty
+            ? null
+            : _programController.text.trim(),
+        graduationYear: _graduationYearController.text.trim().isEmpty
+            ? null
+            : _graduationYearController.text.trim(),
       );
+
+      setState(() {
+        _isSubmitting = false;
+      });
+
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
     }
   }
 }

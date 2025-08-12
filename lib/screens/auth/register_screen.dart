@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import '../../services/auth_service.dart';
 
 class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({Key? key}) : super(key: key);
+  const RegisterScreen({super.key});
 
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
@@ -33,14 +33,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (_formKey.currentState!.validate()) {
       final authService = Provider.of<AuthService>(context, listen: false);
 
-      final success = await authService.register(
+      final authResult = await authService.register(
         _nameController.text.trim(),
         _emailController.text.trim(),
         _passwordController.text,
         _phoneController.text.trim(),
       );
 
-      if (success && mounted) {
+      if (authResult.success && mounted) {
         // Navigation is handled by AuthWrapper
         Navigator.of(context).pop(); // Go back to login/main screen
       } else if (mounted) {

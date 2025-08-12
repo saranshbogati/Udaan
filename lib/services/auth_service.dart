@@ -1,11 +1,15 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import '../models/user.dart';
+import 'api_service.dart';
 
 class AuthService extends ChangeNotifier {
   User? _currentUser;
   bool _isLoggedIn = false;
   bool _isLoading = false;
+  final ApiService _apiService = ApiService();
 
   User? get currentUser => _currentUser;
   bool get isLoggedIn => _isLoggedIn;
@@ -23,88 +27,148 @@ class AuthService extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('jwt_token');
-      final userId = prefs.getInt('user_id');
-      final userName = prefs.getString('user_name');
-      final userEmail = prefs.getString('user_email');
 
-      if (token != null &&
-          userId != null &&
-          userName != null &&
-          userEmail != null) {
-        _currentUser = User(id: userId, name: userName, email: userEmail);
-        _isLoggedIn = true;
+      if (token != null) {
+        // Verify token with backend
+        final user = await _verifyToken(token);
+        if (user != null) {
+          _currentUser = user;
+          _isLoggedIn = true;
+          _apiService.setAuthToken(token);
+        } else {
+          // Token is invalid, clear stored data
+          await _clearUserData();
+        }
       }
     } catch (e) {
       print('Error checking login status: $e');
+      await _clearUserData();
     }
 
     _isLoading = false;
     notifyListeners();
   }
 
+  // Verify token with backend
+  Future<User?> _verifyToken(String token) async {
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiService.baseUrl}/auth/me'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return User.fromJson(data);
+      }
+    } catch (e) {
+      print('Token verification error: $e');
+    }
+    return null;
+  }
+
   // Login method
-  Future<bool> login(String email, String password) async {
+  Future<AuthResult> login(String username, String password) async {
     _isLoading = true;
     notifyListeners();
 
     try {
-      // TODO: Replace with actual API call
-      // For now, simulate login
-      await Future.delayed(const Duration(seconds: 1));
+      final response = await http.post(
+        Uri.parse('${ApiService.baseUrl}/auth/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'username': username,
+          'password': password,
+        }),
+      );
 
-      // Mock successful login
-      if (email.isNotEmpty && password.length >= 6) {
-        final user = User(id: 1, name: 'John Doe', email: email);
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final token = data['access_token'];
 
-        await _saveUserData(user, 'mock_jwt_token');
-        _currentUser = user;
-        _isLoggedIn = true;
+        // Get user info with the token
+        final user = await _verifyToken(token);
+        if (user != null) {
+          await _saveUserData(user, token);
+          _currentUser = user;
+          _isLoggedIn = true;
+          _apiService.setAuthToken(token);
+
+          _isLoading = false;
+          notifyListeners();
+          return AuthResult(success: true, message: 'Login successful');
+        } else {
+          _isLoading = false;
+          notifyListeners();
+          return AuthResult(success: false, message: 'Failed to get user info');
+        }
+      } else {
+        final errorData = json.decode(response.body);
         _isLoading = false;
         notifyListeners();
-        return true;
+        return AuthResult(
+          success: false,
+          message: errorData['detail'] ?? 'Login failed',
+        );
       }
     } catch (e) {
       print('Login error: $e');
+      _isLoading = false;
+      notifyListeners();
+      return AuthResult(
+        success: false,
+        message: 'Network error. Please check your connection.',
+      );
     }
-
-    _isLoading = false;
-    notifyListeners();
-    return false;
   }
 
   // Register method
-  Future<bool> register(
-    String name,
+  Future<AuthResult> register(
+    String username,
     String email,
     String password,
-    String phone,
+    String fullName,
   ) async {
     _isLoading = true;
     notifyListeners();
 
     try {
-      // TODO: Replace with actual API call
-      // For now, simulate registration
-      await Future.delayed(const Duration(seconds: 1));
+      final response = await http.post(
+        Uri.parse('${ApiService.baseUrl}/auth/register'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'username': username,
+          'email': email,
+          'password': password,
+          'full_name': fullName,
+        }),
+      );
 
-      // Mock successful registration
-      if (name.isNotEmpty && email.isNotEmpty && password.length >= 6) {
-        final user = User(id: 1, name: name, email: email, phone: phone);
-
-        await _saveUserData(user, 'mock_jwt_token');
-        _currentUser = user;
-        _isLoggedIn = true;
+      if (response.statusCode == 200) {
+        // After successful registration, login automatically
+        final loginResult = await login(username, password);
+        return loginResult;
+      } else {
+        final errorData = json.decode(response.body);
         _isLoading = false;
         notifyListeners();
-        return true;
+        return AuthResult(
+          success: false,
+          message: errorData['detail'] ?? 'Registration failed',
+        );
       }
     } catch (e) {
       print('Registration error: $e');
+      _isLoading = false;
+      notifyListeners();
+      return AuthResult(
+        success: false,
+        message: 'Network error. Please check your connection.',
+      );
     }
-
-    _isLoading = false;
-    notifyListeners();
-    return false;
   }
 
   // Logout method
@@ -113,11 +177,10 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.clear();
-
+      await _clearUserData();
       _currentUser = null;
       _isLoggedIn = false;
+      _apiService.clearAuthToken();
     } catch (e) {
       print('Logout error: $e');
     }
@@ -131,11 +194,21 @@ class AuthService extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('jwt_token', token);
     await prefs.setInt('user_id', user.id);
-    await prefs.setString('user_name', user.name);
+    await prefs.setString('user_username', user.username);
     await prefs.setString('user_email', user.email);
-    if (user.phone != null) {
-      await prefs.setString('user_phone', user.phone!);
+    if (user.fullName != null) {
+      await prefs.setString('user_full_name', user.fullName!);
     }
+  }
+
+  // Clear user data from local storage
+  Future<void> _clearUserData() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('jwt_token');
+    await prefs.remove('user_id');
+    await prefs.remove('user_username');
+    await prefs.remove('user_email');
+    await prefs.remove('user_full_name');
   }
 
   // Get JWT token
@@ -143,4 +216,21 @@ class AuthService extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('jwt_token');
   }
+
+  // Check if user has valid token
+  Future<bool> hasValidToken() async {
+    final token = await getToken();
+    if (token == null) return false;
+
+    final user = await _verifyToken(token);
+    return user != null;
+  }
+}
+
+// Result class for auth operations
+class AuthResult {
+  final bool success;
+  final String message;
+
+  AuthResult({required this.success, required this.message});
 }

@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 class EmptyState extends StatelessWidget {
   final String title;
   final String description;
@@ -5,12 +7,12 @@ class EmptyState extends StatelessWidget {
   final VoidCallback? onRetry;
 
   const EmptyState({
-    Key? key,
+    super.key,
     required this.title,
     required this.description,
     required this.icon,
     this.onRetry,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -23,13 +25,13 @@ class EmptyState extends StatelessWidget {
             size: 80,
             color: Colors.grey[400],
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
           Text(
             title,
             style: Theme.of(context).textTheme.headlineSmall,
             textAlign: TextAlign.center,
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Text(
             description,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -38,10 +40,10 @@ class EmptyState extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
           if (onRetry != null) ...[
-            SizedBox(height: 24),
+            const SizedBox(height: 24),
             ElevatedButton(
               onPressed: onRetry,
-              child: Text('Try Again'),
+              child: const Text('Try Again'),
             ),
           ],
         ],

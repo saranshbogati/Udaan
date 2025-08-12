@@ -12,7 +12,7 @@ void main() {
 }
 
 class Udaan extends StatelessWidget {
-  const Udaan({Key? key}) : super(key: key);
+  const Udaan({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -77,7 +77,7 @@ class Udaan extends StatelessWidget {
 }
 
 class AuthWrapper extends StatelessWidget {
-  const AuthWrapper({Key? key}) : super(key: key);
+  const AuthWrapper({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -95,7 +95,7 @@ class AuthWrapper extends StatelessWidget {
 }
 
 class MainNavigationScreen extends StatefulWidget {
-  const MainNavigationScreen({Key? key}) : super(key: key);
+  const MainNavigationScreen({super.key});
 
   @override
   State<MainNavigationScreen> createState() => _MainNavigationScreenState();
