@@ -69,7 +69,8 @@ class College {
           : [],
       averageRating: (json['average_rating'] ?? 0.0).toDouble(),
       totalReviews: json['total_reviews'] ?? 0,
-      metadata: json['metadata'],
+      metadata: (json['college_metadata'] ?? json['metadata'])
+          as Map<String, dynamic>?,
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'])
           : DateTime.now(),
@@ -97,7 +98,7 @@ class College {
       'facilities': facilities,
       'average_rating': averageRating,
       'total_reviews': totalReviews,
-      'metadata': metadata,
+      'college_metadata': metadata,
       'created_at': createdAt.toIso8601String(),
     };
   }
@@ -164,4 +165,22 @@ class College {
   bool get hasEmail => email != null && email!.isNotEmpty;
   bool get hasLogo => logoUrl != null && logoUrl!.isNotEmpty;
   bool get hasDescription => description != null && description!.isNotEmpty;
+
+  // Discovery helpers
+  bool get scholarshipsAvailable => (metadata?['scholarships_available'] ?? false) == true;
+  int? get minFee => (metadata?['min_fee'] as num?)?.toInt();
+  int? get maxFee => (metadata?['max_fee'] as num?)?.toInt();
+  List<String> get streams {
+    final m = metadata?['streams'];
+    if (m is List) {
+      return m.map((e) => e.toString()).toList();
+    }
+    // Fallback inference from programs
+    final lower = programs.map((p) => p.toLowerCase()).toList();
+    final s = <String>{};
+    if (lower.any((p) => p.contains('science'))) s.add('Science');
+    if (lower.any((p) => p.contains('management') || p.contains('commerce'))) s.add('Commerce');
+    if (lower.any((p) => p.contains('humanities') || p.contains('arts'))) s.add('Humanities');
+    return s.toList();
+  }
 }

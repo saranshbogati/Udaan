@@ -17,6 +17,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
+optional_security = HTTPBearer(auto_error=False)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -78,6 +79,20 @@ async def get_current_user(
     if user is None:
         raise credentials_exception
     return user
+
+
+async def get_current_user_optional(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(optional_security),
+    db: Session = Depends(get_db),
+) -> Optional[User]:
+    if credentials is None:
+        return None
+    try:
+        token_data = verify_token(credentials.credentials, HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate credentials"))
+        user = get_user(db, username=token_data.username)
+        return user
+    except Exception:
+        return None
 
 
 async def get_current_active_user(current_user: User = Depends(get_current_user)):

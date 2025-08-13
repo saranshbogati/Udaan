@@ -107,6 +107,11 @@ def get_colleges(
     search: Optional[str] = None,
     city: Optional[str] = None,
     state: Optional[str] = None,
+    streams: Optional[str] = None,  # comma separated
+    min_fee: Optional[int] = None,
+    max_fee: Optional[int] = None,
+    scholarships: Optional[bool] = None,
+    sort: Optional[str] = None,  # 'highest' | 'most' | 'weighted'
     db: Session = Depends(get_db),
 ):
     query = db.query(College)
@@ -119,15 +124,79 @@ def get_colleges(
     if state:
         query = query.filter(College.state.ilike(f"%{state}%"))
 
-    # Get total count
+    # Get total count (before metadata filtering)
     total = query.count()
 
     # Apply pagination
     offset = (page - 1) * limit
     colleges = query.offset(offset).limit(limit).all()
 
+    # Post-filter based on college_metadata
+    def matches_metadata_filters(c: College) -> bool:
+        meta = c.college_metadata or {}
+        # Streams
+        if streams:
+            wanted = {s.strip().lower() for s in streams.split(',') if s.strip()}
+            c_streams = set(
+                s.lower() for s in (meta.get("streams") or [])
+            )
+            # fallback: infer from programs
+            if not c_streams:
+                prog = [p.lower() for p in (c.programs or [])]
+                if any("science" in p for p in prog):
+                    c_streams.add("science")
+                if any("management" in p or "commerce" in p for p in prog):
+                    c_streams.add("commerce")
+                if any("humanities" in p or "arts" in p for p in prog):
+                    c_streams.add("humanities")
+            if wanted and not (wanted & c_streams):
+                return False
+        # Fee
+        c_min = meta.get("min_fee")
+        c_max = meta.get("max_fee")
+        if (min_fee is not None or max_fee is not None) and c_min is not None and c_max is not None:
+            if max_fee is not None and c_min > max_fee:
+                return False
+            if min_fee is not None and c_max < min_fee:
+                return False
+        # Scholarships
+        if scholarships is True and not bool(meta.get("scholarships_available")):
+            return False
+        return True
+
+    colleges = [c for c in colleges if matches_metadata_filters(c)]
+
+    # Sorting
+    def weighted_score(c: College, c_mean: float, m: int) -> float:
+        v = c.total_reviews or 0
+        R = c.average_rating or 0.0
+        return (v / (v + m)) * R + (m / (v + m)) * c_mean if (v + m) > 0 else R
+
+    if sort in {"highest", "most", "weighted"}:
+        if sort == "highest":
+            reviewed = [c for c in colleges if (c.total_reviews or 0) > 0]
+            no_reviews = [c for c in colleges if (c.total_reviews or 0) == 0]
+            reviewed.sort(key=lambda c: (c.average_rating or 0.0, c.total_reviews or 0), reverse=True)
+            colleges = reviewed + no_reviews
+        elif sort == "most":
+            reviewed = [c for c in colleges if (c.total_reviews or 0) > 0]
+            no_reviews = [c for c in colleges if (c.total_reviews or 0) == 0]
+            reviewed.sort(key=lambda c: (c.total_reviews or 0, c.average_rating or 0.0), reverse=True)
+            colleges = reviewed + no_reviews
+        else:
+            reviewed = [c for c in colleges if (c.total_reviews or 0) > 0]
+            if reviewed:
+                c_mean = sum((c.average_rating or 0.0) for c in reviewed) / len(reviewed)
+                m = 5
+                colleges.sort(
+                    key=lambda c: (
+                        weighted_score(c, c_mean, m),
+                        c.total_reviews or 0,
+                    ),
+                    reverse=True,
+                )
+
     pages = math.ceil(total / limit)
-    print("colleges are ", colleges)
     return CollegeListResponse(colleges=colleges, total=total, page=page, pages=pages)
 
 
@@ -167,6 +236,7 @@ def create_review(
     # Create review
     db_review = Review(**review.dict(), user_id=current_user.id)
     db.add(db_review)
+    db.flush()  # Ensure the review is visible to subsequent queries
 
     # Update college ratings
     college.total_reviews += 1
@@ -175,17 +245,31 @@ def create_review(
         .filter(Review.college_id == review.college_id)
         .scalar()
     )
-    college.average_rating = round(avg_rating, 1)
+    if avg_rating is None:
+        college.average_rating = round(review.rating, 1)
+    else:
+        college.average_rating = round(avg_rating, 1)
 
     db.commit()
     db.refresh(db_review)
 
     # Return review with user name
-    response = ReviewResponse.from_orm(db_review)
-    response.user_name = current_user.username
-    response.is_liked_by_current_user = False
-
-    return response
+    return {
+        "id": db_review.id,
+        "college_id": db_review.college_id,
+        "user_id": db_review.user_id,
+        "user_name": current_user.username,
+        "rating": db_review.rating,
+        "title": db_review.title,
+        "content": db_review.content,
+        "program": db_review.program,
+        "graduation_year": db_review.graduation_year,
+        "images": db_review.images or [],
+        "is_verified": db_review.is_verified,
+        "likes_count": db_review.likes_count,
+        "is_liked_by_current_user": False,
+        "created_at": db_review.created_at,
+    }
 
 
 @app.get("/colleges/{college_id}/reviews", response_model=ReviewListResponse)
@@ -194,7 +278,7 @@ def get_college_reviews(
     page: int = Query(1, ge=1),
     limit: int = Query(10, ge=1, le=100),
     db: Session = Depends(get_db),
-    current_user: Optional[User] = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_current_user_optional),
 ):
     # Check if college exists
     college = db.query(College).filter(College.id == college_id).first()
