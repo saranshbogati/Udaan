@@ -22,6 +22,11 @@ class _CollegeListScreenState extends State<CollegeListScreen> {
   bool _isLoading = true;
   String _searchQuery = '';
   String _sortMode = 'weighted'; // 'weighted' | 'highest' | 'most'
+  // Discovery filters
+  final Set<String> _selectedStreams = {};
+  RangeValues _feeRange = const RangeValues(0, 500000); // NPR example
+  bool _scholarshipsOnly = false;
+  String _locationQuery = '';
 
   @override
   void initState() {
@@ -118,6 +123,26 @@ class _CollegeListScreenState extends State<CollegeListScreen> {
               affiliationLc.contains(filterLc);
           matchesFilter = typeLc == filterLc || inferredByText;
         }
+
+        // Discovery filters
+        bool matchesStreams = _selectedStreams.isEmpty ||
+            _selectedStreams.any(
+                (s) => college.streams.map((e) => e.toLowerCase()).contains(s.toLowerCase()));
+
+        final minFee = college.minFee ?? 0;
+        final maxFee = college.maxFee ?? 0;
+        bool matchesFee = true;
+        if (_feeRange.start > 0 || _feeRange.end < 500000) {
+          // If college has fee data, check overlap with selected range
+          if (college.minFee != null && college.maxFee != null) {
+            matchesFee = maxFee >= _feeRange.start && minFee <= _feeRange.end;
+          }
+        }
+
+        bool matchesScholarship = !_scholarshipsOnly || college.scholarshipsAvailable;
+
+        bool matchesLocation = _locationQuery.isEmpty ||
+            college.fullLocation.toLowerCase().contains(_locationQuery.toLowerCase());
 
         return matchesSearch && matchesFilter;
       }).toList();
@@ -285,6 +310,15 @@ class _CollegeListScreenState extends State<CollegeListScreen> {
                     }).toList(),
                   ),
                 ),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: _openDiscoveryFilters,
+                    icon: const Icon(Icons.tune),
+                    label: const Text('Discovery Filters'),
+                  ),
+                ),
               ],
             ),
           ),
@@ -444,6 +478,119 @@ class _CollegeListScreenState extends State<CollegeListScreen> {
       context,
       MaterialPageRoute(
         builder: (context) => CollegeDetailScreen(college: college),
+      ),
+    );
+  }
+}
+
+extension on _CollegeListScreenState {
+  void _openDiscoveryFilters() async {
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => StatefulBuilder(
+        builder: (context, setSheetState) {
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom,
+            ),
+            child: SafeArea(
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Text(
+                            'Discovery Filters',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const Spacer(),
+                          TextButton(
+                            onPressed: () {
+                              setSheetState(() {
+                                _selectedStreams.clear();
+                                _feeRange = const RangeValues(0, 500000);
+                                _scholarshipsOnly = false;
+                                _locationQuery = '';
+                              });
+                            },
+                            child: const Text('Reset'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      const Text('Streams'),
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          for (final s in ['Science', 'Humanities', 'Commerce'])
+                            FilterChip(
+                              label: Text(s),
+                              selected: _selectedStreams.contains(s),
+                              onSelected: (sel) {
+                                setSheetState(() {
+                                  if (sel) {
+                                    _selectedStreams.add(s);
+                                  } else {
+                                    _selectedStreams.remove(s);
+                                  }
+                                });
+                              },
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      const Text('Fee Range (NPR)'),
+                      RangeSlider(
+                        values: _feeRange,
+                        min: 0,
+                        max: 1000000,
+                        divisions: 20,
+                        labels: RangeLabels(
+                          _feeRange.start.toInt().toString(),
+                          _feeRange.end.toInt().toString(),
+                        ),
+                        onChanged: (v) => setSheetState(() => _feeRange = v),
+                      ),
+                      const SizedBox(height: 16),
+                      SwitchListTile.adaptive(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Scholarships available'),
+                        value: _scholarshipsOnly,
+                        onChanged: (v) => setSheetState(() => _scholarshipsOnly = v),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text('Location'),
+                      TextField(
+                        decoration: const InputDecoration(
+                          hintText: 'City, state, or area...',
+                        ),
+                        onChanged: (v) => setSheetState(() => _locationQuery = v),
+                      ),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            _filterColleges();
+                          },
+                          child: const Text('Apply Filters'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
