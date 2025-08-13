@@ -20,6 +20,7 @@ class _CollegeListScreenState extends State<CollegeListScreen> {
   String _selectedFilter = 'All';
   bool _isLoading = true;
   String _searchQuery = '';
+  String _sortMode = 'weighted'; // 'weighted' | 'highest' | 'most'
 
   @override
   void initState() {
@@ -119,7 +120,55 @@ class _CollegeListScreenState extends State<CollegeListScreen> {
 
         return matchesSearch && matchesFilter;
       }).toList();
+      _applySorting();
     });
+  }
+
+  void _applySorting() {
+    if (_filteredColleges.isEmpty) return;
+
+    // Helper: weighted rating (IMDb style)
+    double computeWeightedScore(College c, double cMean, int m) {
+      final double R = c.averageRating;
+      final int v = c.totalReviews;
+      return (v / (v + m)) * R + (m / (v + m)) * cMean;
+    }
+
+    if (_sortMode == 'highest') {
+      final withReviews = _filteredColleges.where((c) => c.totalReviews > 0).toList();
+      final noReviews = _filteredColleges.where((c) => c.totalReviews == 0).toList();
+      withReviews.sort((a, b) {
+        final cmp = b.averageRating.compareTo(a.averageRating);
+        if (cmp != 0) return cmp;
+        return b.totalReviews.compareTo(a.totalReviews);
+      });
+      _filteredColleges = [...withReviews, ...noReviews];
+    } else if (_sortMode == 'most') {
+      final withReviews = _filteredColleges.where((c) => c.totalReviews > 0).toList();
+      final noReviews = _filteredColleges.where((c) => c.totalReviews == 0).toList();
+      withReviews.sort((a, b) {
+        final cmp = b.totalReviews.compareTo(a.totalReviews);
+        if (cmp != 0) return cmp;
+        return b.averageRating.compareTo(a.averageRating);
+      });
+      _filteredColleges = [...withReviews, ...noReviews];
+    } else {
+      // weighted
+      final reviewed = _filteredColleges.where((c) => c.totalReviews > 0).toList();
+      if (reviewed.isEmpty) return; // nothing to do
+      final double cMean = reviewed
+              .map((c) => c.averageRating)
+              .fold<double>(0.0, (p, e) => p + e) /
+          reviewed.length;
+      const int m = 5; // minimum review threshold
+      _filteredColleges.sort((a, b) {
+        final aw = computeWeightedScore(a, cMean, m);
+        final bw = computeWeightedScore(b, cMean, m);
+        final cmp = bw.compareTo(aw);
+        if (cmp != 0) return cmp;
+        return b.totalReviews.compareTo(a.totalReviews);
+      });
+    }
   }
 
   Future<void> _refreshColleges() async {
@@ -248,13 +297,39 @@ class _CollegeListScreenState extends State<CollegeListScreen> {
                           fontWeight: FontWeight.w500,
                         ),
                   ),
-                  TextButton.icon(
-                    onPressed: _refreshColleges,
-                    icon: const Icon(Icons.refresh, size: 16),
-                    label: const Text('Refresh'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: Theme.of(context).primaryColor,
-                    ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Sorting chips (top-right)
+                      ChoiceChip(
+                        label: const Text('Most Reviewed'),
+                        selected: _sortMode == 'most',
+                        onSelected: (selected) {
+                          setState(() {
+                            _sortMode = selected ? 'most' : 'weighted';
+                            _applySorting();
+                          });
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      ChoiceChip(
+                        label: const Text('Highest Reviewed'),
+                        selected: _sortMode == 'highest',
+                        onSelected: (selected) {
+                          setState(() {
+                            _sortMode = selected ? 'highest' : 'weighted';
+                            _applySorting();
+                          });
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        onPressed: _refreshColleges,
+                        icon: const Icon(Icons.refresh, size: 18),
+                        color: Theme.of(context).primaryColor,
+                        tooltip: 'Refresh',
+                      ),
+                    ],
                   ),
                 ],
               ),
