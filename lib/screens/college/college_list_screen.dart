@@ -95,15 +95,27 @@ class _CollegeListScreenState extends State<CollegeListScreen> {
 
     setState(() {
       _filteredColleges = _colleges.where((college) {
-        bool matchesSearch = searchTerm.isEmpty ||
-            college.name.toLowerCase().contains(searchTerm) ||
-            college.location.toLowerCase().contains(searchTerm) ||
-            college.programs
-                .any((program) => program.toLowerCase().contains(searchTerm));
+        final nameLc = college.name.toLowerCase();
+        final locationLc = college.location.toLowerCase();
+        final programsLc = college.programs.map((p) => p.toLowerCase());
+        final typeLc = (college.collegeType ?? '').toLowerCase();
+        final affiliationLc = (college.affiliation ?? '').toLowerCase();
 
-        bool matchesFilter = _selectedFilter == 'All' ||
-            (college.collegeType?.toLowerCase() ==
-                _selectedFilter.toLowerCase());
+        bool matchesSearch = searchTerm.isEmpty ||
+            nameLc.contains(searchTerm) ||
+            locationLc.contains(searchTerm) ||
+            programsLc.any((program) => program.contains(searchTerm));
+
+        bool matchesFilter;
+        if (_selectedFilter == 'All') {
+          matchesFilter = true;
+        } else {
+          final filterLc = _selectedFilter.toLowerCase();
+          // Match by explicit college_type OR by substring in name/affiliation
+          final inferredByText = nameLc.contains(filterLc) ||
+              affiliationLc.contains(filterLc);
+          matchesFilter = typeLc == filterLc || inferredByText;
+        }
 
         return matchesSearch && matchesFilter;
       }).toList();
