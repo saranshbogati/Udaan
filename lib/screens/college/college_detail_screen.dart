@@ -29,7 +29,7 @@ class _CollegeDetailScreenState extends State<CollegeDetailScreen>
   @override
   void initState() {
     super.initState();
-    _college = _college;
+    _college = widget.college;
     _tabController = TabController(length: 3, vsync: this);
     _loadReviews();
   }
@@ -621,6 +621,93 @@ class _CollegeDetailScreenState extends State<CollegeDetailScreen>
       ),
     );
   }
+
+  Widget _buildBookmarkButton() {
+    return IconButton(
+      onPressed: _isBookmarkLoading ? null : _toggleBookmark,
+      icon: _isBookmarkLoading
+          ? const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            )
+          : Icon(
+              _college.isSavedByCurrentUser
+                  ? Icons.bookmark
+                  : Icons.bookmark_border,
+              color: Colors.white,
+            ),
+    );
+  }
+
+  Future<void> _toggleBookmark() async {
+    final authService = Provider.of<AuthService>(context, listen: false);
+
+    if (!authService.isLoggedIn) {
+      Navigator.pushNamed(context, '/login');
+      return;
+    }
+
+    setState(() {
+      _isBookmarkLoading = true;
+    });
+
+    try {
+      final apiService = ApiService();
+      final result = await apiService.toggleCollegeBookmark(_college.id);
+
+      if (result.isSuccess) {
+        setState(() {
+          _college = _college.copyWith(
+            isSavedByCurrentUser: result.data!['saved'],
+          );
+          _isBookmarkLoading = false;
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                result.data!['saved']
+                    ? 'College saved to your list'
+                    : 'College removed from your list',
+              ),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        setState(() {
+          _isBookmarkLoading = false;
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to update bookmark: ${result.error}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      setState(() {
+        _isBookmarkLoading = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating bookmark: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 }
 
 class ReviewCard extends StatelessWidget {
@@ -1154,93 +1241,6 @@ class _WriteReviewBottomSheetState extends State<WriteReviewBottomSheet> {
 
       if (mounted) {
         Navigator.of(context).pop();
-      }
-    }
-  }
-
-  Widget _buildBookmarkButton() {
-    return IconButton(
-      onPressed: _isBookmarkLoading ? null : _toggleBookmark,
-      icon: _isBookmarkLoading
-          ? const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-              ),
-            )
-          : Icon(
-              _college.isSavedByCurrentUser
-                  ? Icons.bookmark
-                  : Icons.bookmark_border,
-              color: Colors.white,
-            ),
-    );
-  }
-
-  Future<void> _toggleBookmark() async {
-    final authService = Provider.of<AuthService>(context, listen: false);
-
-    if (!authService.isLoggedIn) {
-      Navigator.pushNamed(context, '/login');
-      return;
-    }
-
-    setState(() {
-      _isBookmarkLoading = true;
-    });
-
-    try {
-      final apiService = ApiService();
-      final result = await apiService.toggleCollegeBookmark(_college.id);
-
-      if (result.isSuccess) {
-        setState(() {
-          _college = _college.copyWith(
-            isSavedByCurrentUser: result.data!['saved'],
-          );
-          _isBookmarkLoading = false;
-        });
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                result.data!['saved']
-                    ? 'College saved to your list'
-                    : 'College removed from your list',
-              ),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      } else {
-        setState(() {
-          _isBookmarkLoading = false;
-        });
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to update bookmark: ${result.error}'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      setState(() {
-        _isBookmarkLoading = false;
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error updating bookmark: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
       }
     }
   }
