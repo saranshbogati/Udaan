@@ -19,16 +19,25 @@ class ApiService {
   // static const String baseUrl = 'http://10.0.2.2:8000'; // For Android emulator
   // static const String baseUrl = 'https://your-backend-url.com'; // For production
 
+  static String? globalAuthToken;
+
   String? _authToken;
+
+  ApiService() {
+    // Initialize from global token if available
+    _authToken = globalAuthToken;
+  }
 
   // Set authentication token
   void setAuthToken(String token) {
     _authToken = token;
+    globalAuthToken = token;
   }
 
   // Clear authentication token
   void clearAuthToken() {
     _authToken = null;
+    globalAuthToken = null;
   }
 
   // Get headers with authentication
@@ -37,8 +46,9 @@ class ApiService {
       'Content-Type': 'application/json',
     };
 
-    if (_authToken != null) {
-      headers['Authorization'] = 'Bearer $_authToken';
+    final tokenToUse = _authToken ?? globalAuthToken;
+    if (tokenToUse != null) {
+      headers['Authorization'] = 'Bearer $tokenToUse';
     }
 
     return headers;

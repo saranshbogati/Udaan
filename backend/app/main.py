@@ -194,7 +194,7 @@ def get_college_reviews(
     page: int = Query(1, ge=1),
     limit: int = Query(10, ge=1, le=100),
     db: Session = Depends(get_db),
-    current_user: Optional[User] = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_current_user_optional),
 ):
     # Check if college exists
     college = db.query(College).filter(College.id == college_id).first()

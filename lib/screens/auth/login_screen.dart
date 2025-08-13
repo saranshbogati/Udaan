@@ -104,12 +104,13 @@ class _LoginScreenState extends State<LoginScreen>
                   ),
                   child: TabBar(
                     controller: _tabController,
-                    labelColor: Colors.white,
+                    labelColor: Theme.of(context).primaryColor,
                     unselectedLabelColor: Colors.grey[600],
                     overlayColor: MaterialStateProperty.all(Colors.transparent),
                     indicator: BoxDecoration(
-                      color: Theme.of(context).primaryColor,
+                      color: Colors.transparent,
                       borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Theme.of(context).primaryColor, width: 2),
                     ),
                     tabs: const [
                       Tab(text: 'Login'),

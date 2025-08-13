@@ -44,6 +44,12 @@ class _CollegeDetailScreenState extends State<CollegeDetailScreen>
 
     try {
       final apiService = ApiService();
+      // Ensure token is applied from AuthService when available
+      final auth = Provider.of<AuthService>(context, listen: false);
+      final token = await auth.getToken();
+      if (token != null) {
+        apiService.setAuthToken(token);
+      }
       final result = await apiService.getCollegeReviews(widget.college.id);
 
       if (result.isSuccess) {
@@ -199,8 +205,10 @@ class _CollegeDetailScreenState extends State<CollegeDetailScreen>
             expandedHeight: 200,
             pinned: true,
             flexibleSpace: FlexibleSpaceBar(
+              centerTitle: true,
               title: Text(
                 widget.college.name,
+                textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
