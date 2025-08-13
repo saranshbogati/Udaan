@@ -249,6 +249,13 @@ class AuthService extends ChangeNotifier {
     final user = await _verifyToken(token);
     return user != null;
   }
+
+  // Update current user data
+  void updateUser(User user) {
+    _currentUser = user;
+    _saveUserData(user);
+    notifyListeners();
+  }
 }
 
 // Result class for auth operations

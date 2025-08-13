@@ -4,6 +4,8 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import '../models/college.dart';
 import '../models/review.dart';
+import '../models/user.dart';
+import '../models/saved_college.dart';
 
 class ApiService {
   // Change this to your backend URL
@@ -58,11 +60,13 @@ class ApiService {
   ApiResult<T> _handleError<T>(dynamic error) {
     print('API Error: $error');
     if (error is SocketException) {
-      return ApiResult<T>.error('No internet connection');
-    } else if (error is HttpException) {
-      return ApiResult<T>.error('Server error');
+      return ApiResult.error('Network error. Please check your connection.');
+    } else if (error is FormatException) {
+      return ApiResult.error('Invalid response format.');
+    } else if (error is http.ClientException) {
+      return ApiResult.error('Connection failed.');
     } else {
-      return ApiResult<T>.error('Something went wrong');
+      return ApiResult.error('An unexpected error occurred: $error');
     }
   }
 
@@ -83,6 +87,181 @@ class ApiService {
           : response.body;
       return ApiResult<Map<String, dynamic>>.error(
           'Failed to parse response (${response.statusCode}): $snippet');
+    }
+  }
+
+  // Profile endpoints
+  Future<ApiResult<UserStats>> getUserStats() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/profile/stats'),
+        headers: _headers,
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        return ApiResult.success(UserStats.fromJson(data));
+      } else {
+        final error = json.decode(response.body);
+        return ApiResult.error(error['detail'] ?? 'Failed to get user stats');
+      }
+    } catch (e) {
+      return _handleError<UserStats>(e);
+    }
+  }
+
+  Future<ApiResult<User>> updateProfile({
+    String? fullName,
+    String? email,
+    String? profilePicture,
+  }) async {
+    try {
+      final Map<String, dynamic> updateData = {};
+      if (fullName != null) updateData['full_name'] = fullName;
+      if (email != null) updateData['email'] = email;
+      if (profilePicture != null) updateData['profile_picture'] = profilePicture;
+
+      final response = await http.put(
+        Uri.parse('$baseUrl/profile'),
+        headers: _headers,
+        body: json.encode(updateData),
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        return ApiResult.success(User.fromJson(data));
+      } else {
+        final error = json.decode(response.body);
+        return ApiResult.error(error['detail'] ?? 'Failed to update profile');
+      }
+    } catch (e) {
+      return _handleError<User>(e);
+    }
+  }
+
+  Future<ApiResult<ReviewListResponse>> getUserReviews({
+    int page = 1,
+    int limit = 10,
+  }) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/profile/reviews?page=$page&limit=$limit'),
+        headers: _headers,
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        return ApiResult.success(ReviewListResponse.fromJson(data));
+      } else {
+        final error = json.decode(response.body);
+        return ApiResult.error(error['detail'] ?? 'Failed to get user reviews');
+      }
+    } catch (e) {
+      return _handleError<ReviewListResponse>(e);
+    }
+  }
+
+  Future<ApiResult<ReviewListResponse>> getLikedReviews({
+    int page = 1,
+    int limit = 10,
+  }) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/profile/liked-reviews?page=$page&limit=$limit'),
+        headers: _headers,
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        return ApiResult.success(ReviewListResponse.fromJson(data));
+      } else {
+        final error = json.decode(response.body);
+        return ApiResult.error(error['detail'] ?? 'Failed to get liked reviews');
+      }
+    } catch (e) {
+      return _handleError<ReviewListResponse>(e);
+    }
+  }
+
+  Future<ApiResult<SavedCollegeListResponse>> getSavedColleges({
+    int page = 1,
+    int limit = 10,
+  }) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/profile/saved-colleges?page=$page&limit=$limit'),
+        headers: _headers,
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        return ApiResult.success(SavedCollegeListResponse.fromJson(data));
+      } else {
+        final error = json.decode(response.body);
+        return ApiResult.error(error['detail'] ?? 'Failed to get saved colleges');
+      }
+    } catch (e) {
+      return _handleError<SavedCollegeListResponse>(e);
+    }
+  }
+
+  // College bookmark endpoints
+  Future<ApiResult<Map<String, dynamic>>> toggleCollegeBookmark(int collegeId) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/colleges/$collegeId/bookmark'),
+        headers: _headers,
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        return ApiResult.success(data);
+      } else {
+        final error = json.decode(response.body);
+        return ApiResult.error(error['detail'] ?? 'Failed to toggle bookmark');
+      }
+    } catch (e) {
+      return _handleError<Map<String, dynamic>>(e);
+    }
+  }
+
+  // Review CRUD endpoints
+  Future<ApiResult<Review>> updateReview(int reviewId, Review review) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$baseUrl/reviews/$reviewId'),
+        headers: _headers,
+        body: json.encode(review.toUpdateJson()),
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        return ApiResult.success(Review.fromJson(data));
+      } else {
+        final error = json.decode(response.body);
+        return ApiResult.error(error['detail'] ?? 'Failed to update review');
+      }
+    } catch (e) {
+      return _handleError<Review>(e);
+    }
+  }
+
+  Future<ApiResult<String>> deleteReview(int reviewId) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('$baseUrl/reviews/$reviewId'),
+        headers: _headers,
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        return ApiResult.success(data['message'] ?? 'Review deleted successfully');
+      } else {
+        final error = json.decode(response.body);
+        return ApiResult.error(error['detail'] ?? 'Failed to delete review');
+      }
+    } catch (e) {
+      return _handleError<String>(e);
     }
   }
 
@@ -114,15 +293,19 @@ class ApiService {
 
       final uri =
           Uri.parse('$baseUrl/colleges').replace(queryParameters: queryParams);
+      print('Making request to: $uri');
+
       final response = await http.get(uri, headers: _headers);
 
-      final result = _handleResponse(response);
-      if (result.isSuccess) {
-        return ApiResult<CollegeListResponse>.success(
-          CollegeListResponse.fromJson(result.data!),
-        );
+      print('Response status: ${response.statusCode}');
+      print('Response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        return ApiResult.success(CollegeListResponse.fromJson(data));
       } else {
-        return ApiResult<CollegeListResponse>.error(result.error!);
+        final error = json.decode(response.body);
+        return ApiResult.error(error['detail'] ?? 'Failed to fetch colleges');
       }
     } catch (e) {
       return _handleError<CollegeListResponse>(e);
@@ -137,11 +320,12 @@ class ApiService {
         headers: _headers,
       );
 
-      final result = _handleResponse(response);
-      if (result.isSuccess) {
-        return ApiResult<College>.success(College.fromJson(result.data!));
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        return ApiResult.success(College.fromJson(data));
       } else {
-        return ApiResult<College>.error(result.error!);
+        final error = json.decode(response.body);
+        return ApiResult.error(error['detail'] ?? 'College not found');
       }
     } catch (e) {
       return _handleError<College>(e);
@@ -157,11 +341,12 @@ class ApiService {
         body: json.encode(college.toJson()),
       );
 
-      final result = _handleResponse(response);
-      if (result.isSuccess) {
-        return ApiResult<College>.success(College.fromJson(result.data!));
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        return ApiResult.success(College.fromJson(data));
       } else {
-        return ApiResult<College>.error(result.error!);
+        final error = json.decode(response.body);
+        return ApiResult.error(error['detail'] ?? 'Failed to create college');
       }
     } catch (e) {
       return _handleError<College>(e);
@@ -186,13 +371,12 @@ class ApiService {
           .replace(queryParameters: queryParams);
       final response = await http.get(uri, headers: _headers);
 
-      final result = _handleResponse(response);
-      if (result.isSuccess) {
-        return ApiResult<ReviewListResponse>.success(
-          ReviewListResponse.fromJson(result.data!),
-        );
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        return ApiResult.success(ReviewListResponse.fromJson(data));
       } else {
-        return ApiResult<ReviewListResponse>.error(result.error!);
+        final error = json.decode(response.body);
+        return ApiResult.error(error['detail'] ?? 'Failed to fetch reviews');
       }
     } catch (e) {
       return _handleError<ReviewListResponse>(e);
@@ -212,23 +396,23 @@ class ApiService {
       if (is2xx) {
         final body = response.body.trim();
         if (body.isEmpty) {
-          return ApiResult<Review>.success(review);
+          return ApiResult.success(review);
         }
         try {
           final decoded = json.decode(body);
           if (decoded is Map<String, dynamic>) {
-            return ApiResult<Review>.success(Review.fromJson(decoded));
+            return ApiResult.success(Review.fromJson(decoded));
           } else {
-            return ApiResult<Review>.success(review);
+            return ApiResult.success(review);
           }
         } catch (_) {
-          return ApiResult<Review>.success(review);
+          return ApiResult.success(review);
         }
       }
 
       // Non-2xx: use generic handler for error message
       final result = _handleResponse(response);
-      return ApiResult<Review>.error(result.error ?? 'Request failed');
+      return ApiResult.error(result.error ?? 'Request failed');
     } catch (e) {
       return _handleError<Review>(e);
     }
@@ -242,13 +426,12 @@ class ApiService {
         headers: _headers,
       );
 
-      final result = _handleResponse(response);
-      if (result.isSuccess) {
-        return ApiResult<ReviewLikeResponse>.success(
-          ReviewLikeResponse.fromJson(result.data!),
-        );
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        return ApiResult.success(ReviewLikeResponse.fromJson(data));
       } else {
-        return ApiResult<ReviewLikeResponse>.error(result.error!);
+        final error = json.decode(response.body);
+        return ApiResult.error(error['detail'] ?? 'Failed to toggle like');
       }
     } catch (e) {
       return _handleError<ReviewLikeResponse>(e);
@@ -269,15 +452,13 @@ class ApiResult<T> {
   final String? error;
   final bool isSuccess;
 
-  ApiResult._({this.data, this.error, required this.isSuccess});
+  ApiResult.success(this.data)
+      : error = null,
+        isSuccess = true;
 
-  factory ApiResult.success(T data) {
-    return ApiResult._(data: data, isSuccess: true);
-  }
-
-  factory ApiResult.error(String error) {
-    return ApiResult._(error: error, isSuccess: false);
-  }
+  ApiResult.error(this.error)
+      : data = null,
+        isSuccess = false;
 }
 
 // Response models for lists

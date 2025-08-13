@@ -19,6 +19,7 @@ class College {
   final double averageRating;
   final int totalReviews;
   final Map<String, dynamic>? metadata;
+  final bool isSavedByCurrentUser;
   final DateTime createdAt;
 
   College({
@@ -42,6 +43,7 @@ class College {
     this.averageRating = 0.0,
     this.totalReviews = 0,
     this.metadata,
+    this.isSavedByCurrentUser = false,
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
@@ -71,6 +73,7 @@ class College {
       totalReviews: json['total_reviews'] ?? 0,
       metadata: (json['college_metadata'] ?? json['metadata'])
           as Map<String, dynamic>?,
+      isSavedByCurrentUser: json['is_saved_by_current_user'] ?? false,
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'])
           : DateTime.now(),
@@ -99,6 +102,7 @@ class College {
       'average_rating': averageRating,
       'total_reviews': totalReviews,
       'college_metadata': metadata,
+      'is_saved_by_current_user': isSavedByCurrentUser,
       'created_at': createdAt.toIso8601String(),
     };
   }
@@ -124,6 +128,7 @@ class College {
     double? averageRating,
     int? totalReviews,
     Map<String, dynamic>? metadata,
+    bool? isSavedByCurrentUser,
     DateTime? createdAt,
   }) {
     return College(
@@ -147,6 +152,7 @@ class College {
       averageRating: averageRating ?? this.averageRating,
       totalReviews: totalReviews ?? this.totalReviews,
       metadata: metadata ?? this.metadata,
+      isSavedByCurrentUser: isSavedByCurrentUser ?? this.isSavedByCurrentUser,
       createdAt: createdAt ?? this.createdAt,
     );
   }

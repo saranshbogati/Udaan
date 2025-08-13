@@ -12,6 +12,8 @@ class Review {
   final bool isVerified;
   final int likesCount;
   final bool isLikedByCurrentUser;
+  final bool isOwnedByCurrentUser;
+  final String? collegeName;
   final DateTime createdAt;
 
   Review({
@@ -28,6 +30,8 @@ class Review {
     this.isVerified = false,
     this.likesCount = 0,
     this.isLikedByCurrentUser = false,
+    this.isOwnedByCurrentUser = false,
+    this.collegeName,
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
@@ -46,6 +50,8 @@ class Review {
       isVerified: json['is_verified'] ?? false,
       likesCount: json['likes_count'] ?? 0,
       isLikedByCurrentUser: json['is_liked_by_current_user'] ?? false,
+      isOwnedByCurrentUser: json['is_owned_by_current_user'] ?? false,
+      collegeName: json['college_name'],
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'])
           : DateTime.now(),
@@ -67,6 +73,8 @@ class Review {
       'is_verified': isVerified,
       'likes_count': likesCount,
       'is_liked_by_current_user': isLikedByCurrentUser,
+      'is_owned_by_current_user': isOwnedByCurrentUser,
+      'college_name': collegeName,
       'created_at': createdAt.toIso8601String(),
     };
   }
@@ -75,6 +83,18 @@ class Review {
   Map<String, dynamic> toCreateJson() {
     return {
       'college_id': collegeId,
+      'rating': rating,
+      'title': title,
+      'content': content,
+      'program': program,
+      'graduation_year': graduationYear,
+      'images': images,
+    };
+  }
+
+  // For updating an existing review
+  Map<String, dynamic> toUpdateJson() {
+    return {
       'rating': rating,
       'title': title,
       'content': content,
@@ -98,6 +118,8 @@ class Review {
     bool? isVerified,
     int? likesCount,
     bool? isLikedByCurrentUser,
+    bool? isOwnedByCurrentUser,
+    String? collegeName,
     DateTime? createdAt,
   }) {
     return Review(
@@ -114,6 +136,8 @@ class Review {
       isVerified: isVerified ?? this.isVerified,
       likesCount: likesCount ?? this.likesCount,
       isLikedByCurrentUser: isLikedByCurrentUser ?? this.isLikedByCurrentUser,
+      isOwnedByCurrentUser: isOwnedByCurrentUser ?? this.isOwnedByCurrentUser,
+      collegeName: collegeName ?? this.collegeName,
       createdAt: createdAt ?? this.createdAt,
     );
   }

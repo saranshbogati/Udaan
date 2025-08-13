@@ -72,3 +72,41 @@ class User {
     );
   }
 }
+
+class UserStats {
+  final int totalReviews;
+  final int totalLikesReceived;
+  final int peopleHelped;
+  final int savedCollegesCount;
+  final DateTime joinedDate;
+
+  UserStats({
+    required this.totalReviews,
+    required this.totalLikesReceived,
+    required this.peopleHelped,
+    required this.savedCollegesCount,
+    required this.joinedDate,
+  });
+
+  factory UserStats.fromJson(Map<String, dynamic> json) {
+    return UserStats(
+      totalReviews: json['total_reviews'] ?? 0,
+      totalLikesReceived: json['total_likes_received'] ?? 0,
+      peopleHelped: json['people_helped'] ?? 0,
+      savedCollegesCount: json['saved_colleges_count'] ?? 0,
+      joinedDate: json['joined_date'] != null
+          ? DateTime.parse(json['joined_date'])
+          : DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'total_reviews': totalReviews,
+      'total_likes_received': totalLikesReceived,
+      'people_helped': peopleHelped,
+      'saved_colleges_count': savedCollegesCount,
+      'joined_date': joinedDate.toIso8601String(),
+    };
+  }
+}

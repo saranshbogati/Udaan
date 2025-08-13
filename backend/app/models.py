@@ -33,6 +33,7 @@ class User(Base):
     # Relationships
     reviews = relationship("Review", back_populates="user")
     review_likes = relationship("ReviewLike", back_populates="user")
+    saved_colleges = relationship("SavedCollege", back_populates="user")
 
 
 class College(Base):
@@ -63,6 +64,7 @@ class College(Base):
 
     # Relationships
     reviews = relationship("Review", back_populates="college")
+    saved_by_users = relationship("SavedCollege", back_populates="college")
 
 
 class Review(Base):
@@ -99,6 +101,22 @@ class ReviewLike(Base):
     # Relationships
     review = relationship("Review", back_populates="likes")
     user = relationship("User", back_populates="review_likes")
+
+    # Ensure unique constraint
+    __table_args__ = ({"sqlite_autoincrement": True},)
+
+
+class SavedCollege(Base):
+    __tablename__ = "saved_colleges"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    college_id = Column(Integer, ForeignKey("colleges.id"), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    user = relationship("User", back_populates="saved_colleges")
+    college = relationship("College", back_populates="saved_by_users")
 
     # Ensure unique constraint
     __table_args__ = ({"sqlite_autoincrement": True},)

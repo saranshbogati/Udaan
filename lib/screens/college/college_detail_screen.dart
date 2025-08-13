@@ -23,10 +23,13 @@ class _CollegeDetailScreenState extends State<CollegeDetailScreen>
   late TabController _tabController;
   List<Review> _reviews = [];
   bool _isLoading = true;
+  late College _college;
+  bool _isBookmarkLoading = false;
 
   @override
   void initState() {
     super.initState();
+    _college = _college;
     _tabController = TabController(length: 3, vsync: this);
     _loadReviews();
   }
@@ -50,7 +53,7 @@ class _CollegeDetailScreenState extends State<CollegeDetailScreen>
       if (token != null) {
         apiService.setAuthToken(token);
       }
-      final result = await apiService.getCollegeReviews(widget.college.id);
+      final result = await apiService.getCollegeReviews(_college.id);
 
       if (result.isSuccess) {
         setState(() {
@@ -106,7 +109,7 @@ class _CollegeDetailScreenState extends State<CollegeDetailScreen>
 
       final newReview = Review(
         id: 0,
-        collegeId: widget.college.id,
+        collegeId: _college.id,
         userId: authService.currentUser!.id,
         userName: authService.currentUser!.username,
         rating: rating,
@@ -204,10 +207,13 @@ class _CollegeDetailScreenState extends State<CollegeDetailScreen>
           SliverAppBar(
             expandedHeight: 200,
             pinned: true,
+            actions: [
+              _buildBookmarkButton(),
+            ],
             flexibleSpace: FlexibleSpaceBar(
               centerTitle: true,
               title: Text(
-                widget.college.name,
+                _college.name,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: Colors.white,
@@ -273,14 +279,14 @@ class _CollegeDetailScreenState extends State<CollegeDetailScreen>
             children: [
               ...[
                 Text(
-                  widget.college.averageRating!.toStringAsFixed(1),
+                  _college.averageRating.toStringAsFixed(1),
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
                 ),
                 const SizedBox(width: 8),
                 RatingBarIndicator(
-                  rating: widget.college.averageRating!,
+                  rating: _college.averageRating,
                   itemBuilder: (context, _) => const Icon(
                     Icons.star,
                     color: Colors.amber,
@@ -290,7 +296,7 @@ class _CollegeDetailScreenState extends State<CollegeDetailScreen>
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  '(${widget.college.totalReviews ?? 0} reviews)',
+                  '(${_college.totalReviews} reviews)',
                   style: TextStyle(
                     color: Colors.grey[600],
                   ),
@@ -308,7 +314,7 @@ class _CollegeDetailScreenState extends State<CollegeDetailScreen>
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  widget.college.location,
+                  _college.location,
                   style: TextStyle(
                     color: Colors.grey[700],
                   ),
@@ -330,18 +336,18 @@ class _CollegeDetailScreenState extends State<CollegeDetailScreen>
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: (widget.college.collegeType ?? '').toLowerCase() ==
+                  color: (_college.collegeType ?? '').toLowerCase() ==
                           'university'
                       ? Colors.blue.shade100
                       : Colors.green.shade100,
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Text(
-                  widget.college.collegeType ?? 'College',
+                  _college.collegeType ?? 'College',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
-                    color: (widget.college.collegeType ?? '').toLowerCase() ==
+                    color: (_college.collegeType ?? '').toLowerCase() ==
                             'university'
                         ? Colors.blue.shade700
                         : Colors.green.shade700,
@@ -378,8 +384,8 @@ class _CollegeDetailScreenState extends State<CollegeDetailScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (widget.college.description != null &&
-              widget.college.description!.isNotEmpty) ...[
+          if (_college.description != null &&
+              _college.description!.isNotEmpty) ...[
             Text(
               'About',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -388,7 +394,7 @@ class _CollegeDetailScreenState extends State<CollegeDetailScreen>
             ),
             const SizedBox(height: 8),
             Text(
-              widget.college.description!,
+              _college.description!,
               style: TextStyle(
                 color: Colors.grey[700],
                 height: 1.5,
@@ -403,11 +409,11 @@ class _CollegeDetailScreenState extends State<CollegeDetailScreen>
                 ),
           ),
           const SizedBox(height: 12),
-          if (widget.college.programs.isNotEmpty)
+          if (_college.programs.isNotEmpty)
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: widget.college.programs.map((program) {
+              children: _college.programs.map((program) {
                 return Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
@@ -437,7 +443,7 @@ class _CollegeDetailScreenState extends State<CollegeDetailScreen>
               ),
             ),
           const SizedBox(height: 24),
-          if (widget.college.establishedYear != null) ...[
+          if (_college.establishedYear != null) ...[
             Text(
               'Established',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -446,7 +452,7 @@ class _CollegeDetailScreenState extends State<CollegeDetailScreen>
             ),
             const SizedBox(height: 8),
             Text(
-              widget.college.establishedYear!.toString(),
+              _college.establishedYear!.toString(),
               style: TextStyle(
                 color: Colors.grey[700],
                 fontSize: 16,
@@ -454,8 +460,8 @@ class _CollegeDetailScreenState extends State<CollegeDetailScreen>
             ),
             const SizedBox(height: 24),
           ],
-          if (widget.college.affiliation != null &&
-              widget.college.affiliation!.isNotEmpty) ...[
+          if (_college.affiliation != null &&
+              _college.affiliation!.isNotEmpty) ...[
             Text(
               'Affiliated University',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -464,7 +470,7 @@ class _CollegeDetailScreenState extends State<CollegeDetailScreen>
             ),
             const SizedBox(height: 8),
             Text(
-              widget.college.affiliation!,
+              _college.affiliation!,
               style: TextStyle(
                 color: Colors.grey[700],
                 fontSize: 16,
@@ -536,29 +542,29 @@ class _CollegeDetailScreenState extends State<CollegeDetailScreen>
                 ),
           ),
           const SizedBox(height: 24),
-          if (widget.college.phone != null && widget.college.phone!.isNotEmpty)
+          if (_college.phone != null && _college.phone!.isNotEmpty)
             _buildContactItem(
               Icons.phone_outlined,
               'Phone',
-              widget.college.phone!,
+              _college.phone!,
             ),
-          if (widget.college.email != null && widget.college.email!.isNotEmpty)
+          if (_college.email != null && _college.email!.isNotEmpty)
             _buildContactItem(
               Icons.email_outlined,
               'Email',
-              widget.college.email!,
+              _college.email!,
             ),
-          if (widget.college.website != null &&
-              widget.college.website!.isNotEmpty)
+          if (_college.website != null &&
+              _college.website!.isNotEmpty)
             _buildContactItem(
               Icons.web_outlined,
               'Website',
-              widget.college.website!,
+              _college.website!,
             ),
           _buildContactItem(
             Icons.location_on_outlined,
             'Address',
-            widget.college.location,
+            _college.location,
           ),
         ],
       ),
@@ -610,7 +616,7 @@ class _CollegeDetailScreenState extends State<CollegeDetailScreen>
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => WriteReviewBottomSheet(
-        college: widget.college,
+        college: _college,
         onReviewSubmitted: _createReview,
       ),
     );
@@ -911,7 +917,7 @@ class _WriteReviewBottomSheetState extends State<WriteReviewBottomSheet> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
-                              widget.college.name,
+                              _college.name,
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                               ),
@@ -1148,6 +1154,93 @@ class _WriteReviewBottomSheetState extends State<WriteReviewBottomSheet> {
 
       if (mounted) {
         Navigator.of(context).pop();
+      }
+    }
+  }
+
+  Widget _buildBookmarkButton() {
+    return IconButton(
+      onPressed: _isBookmarkLoading ? null : _toggleBookmark,
+      icon: _isBookmarkLoading
+          ? const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            )
+          : Icon(
+              _college.isSavedByCurrentUser
+                  ? Icons.bookmark
+                  : Icons.bookmark_border,
+              color: Colors.white,
+            ),
+    );
+  }
+
+  Future<void> _toggleBookmark() async {
+    final authService = Provider.of<AuthService>(context, listen: false);
+
+    if (!authService.isLoggedIn) {
+      Navigator.pushNamed(context, '/login');
+      return;
+    }
+
+    setState(() {
+      _isBookmarkLoading = true;
+    });
+
+    try {
+      final apiService = ApiService();
+      final result = await apiService.toggleCollegeBookmark(_college.id);
+
+      if (result.isSuccess) {
+        setState(() {
+          _college = _college.copyWith(
+            isSavedByCurrentUser: result.data!['saved'],
+          );
+          _isBookmarkLoading = false;
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                result.data!['saved']
+                    ? 'College saved to your list'
+                    : 'College removed from your list',
+              ),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        setState(() {
+          _isBookmarkLoading = false;
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to update bookmark: ${result.error}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      setState(() {
+        _isBookmarkLoading = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating bookmark: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
