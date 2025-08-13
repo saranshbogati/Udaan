@@ -690,6 +690,177 @@ def root():
     return {"message": "College Review API is running!"}
 
 
+# Admin endpoints
+@app.get("/reviews", response_model=ReviewListResponse)
+def get_all_reviews_admin(
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db)
+):
+    """Get all reviews for admin panel with pagination"""
+    skip = (page - 1) * limit
+    
+    # Get total count
+    total = db.query(Review).count()
+    total_pages = math.ceil(total / limit)
+    
+    # Get reviews with college names
+    reviews = (
+        db.query(Review, College.name.label('college_name'), User.username.label('user_name'))
+        .join(College, Review.college_id == College.id)
+        .join(User, Review.user_id == User.id)
+        .order_by(desc(Review.created_at))
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+    
+    review_responses = []
+    for review, college_name, user_name in reviews:
+        review_dict = {
+            "id": review.id,
+            "college_id": review.college_id,
+            "user_id": review.user_id,
+            "user_name": user_name,
+            "rating": review.rating,
+            "title": review.title,
+            "content": review.content,
+            "program": review.program,
+            "graduation_year": review.graduation_year,
+            "images": review.images or [],
+            "is_verified": review.is_verified,
+            "likes_count": review.likes_count,
+            "college_name": college_name,
+            "is_owned_by_current_user": False,  # Admin context
+            "created_at": review.created_at
+        }
+        review_responses.append(ReviewResponse(**review_dict))
+    
+    return ReviewListResponse(
+        reviews=review_responses,
+        total=total,
+        page=page,
+        pages=total_pages
+    )
+
+@app.delete("/reviews/{review_id}")
+def delete_review_admin(
+    review_id: int,
+    db: Session = Depends(get_db)
+):
+    """Delete a review (admin)"""
+    review = db.query(Review).filter(Review.id == review_id).first()
+    if not review:
+        raise HTTPException(status_code=404, detail="Review not found")
+    
+    # Delete associated likes first
+    db.query(ReviewLike).filter(ReviewLike.review_id == review_id).delete()
+    
+    # Delete the review
+    db.delete(review)
+    db.commit()
+    
+    return {"message": "Review deleted successfully"}
+
+@app.post("/colleges", response_model=CollegeResponse)
+def create_college_admin(
+    college: CollegeCreate,
+    db: Session = Depends(get_db)
+):
+    """Create a new college (admin)"""
+    db_college = College(**college.dict())
+    db.add(db_college)
+    db.commit()
+    db.refresh(db_college)
+    
+    return CollegeResponse(
+        id=db_college.id,
+        name=db_college.name,
+        location=db_college.location,
+        city=db_college.city,
+        state=db_college.state,
+        country=db_college.country,
+        website=db_college.website,
+        phone=db_college.phone,
+        email=db_college.email,
+        established_year=db_college.established_year,
+        college_type=db_college.college_type,
+        affiliation=db_college.affiliation,
+        description=db_college.description,
+        logo_url=db_college.logo_url,
+        images=db_college.images or [],
+        programs=db_college.programs or [],
+        facilities=db_college.facilities or [],
+        average_rating=db_college.average_rating,
+        total_reviews=db_college.total_reviews,
+        college_metadata=db_college.college_metadata,
+        is_saved_by_current_user=False,  # Admin context
+        created_at=db_college.created_at
+    )
+
+@app.put("/colleges/{college_id}", response_model=CollegeResponse)
+def update_college_admin(
+    college_id: int,
+    college_update: CollegeCreate,
+    db: Session = Depends(get_db)
+):
+    """Update a college (admin)"""
+    db_college = db.query(College).filter(College.id == college_id).first()
+    if not db_college:
+        raise HTTPException(status_code=404, detail="College not found")
+    
+    # Update college fields
+    for field, value in college_update.dict(exclude_unset=True).items():
+        setattr(db_college, field, value)
+    
+    db.commit()
+    db.refresh(db_college)
+    
+    return CollegeResponse(
+        id=db_college.id,
+        name=db_college.name,
+        location=db_college.location,
+        city=db_college.city,
+        state=db_college.state,
+        country=db_college.country,
+        website=db_college.website,
+        phone=db_college.phone,
+        email=db_college.email,
+        established_year=db_college.established_year,
+        college_type=db_college.college_type,
+        affiliation=db_college.affiliation,
+        description=db_college.description,
+        logo_url=db_college.logo_url,
+        images=db_college.images or [],
+        programs=db_college.programs or [],
+        facilities=db_college.facilities or [],
+        average_rating=db_college.average_rating,
+        total_reviews=db_college.total_reviews,
+        college_metadata=db_college.college_metadata,
+        is_saved_by_current_user=False,  # Admin context
+        created_at=db_college.created_at
+    )
+
+@app.delete("/colleges/{college_id}")
+def delete_college_admin(
+    college_id: int,
+    db: Session = Depends(get_db)
+):
+    """Delete a college (admin)"""
+    college = db.query(College).filter(College.id == college_id).first()
+    if not college:
+        raise HTTPException(status_code=404, detail="College not found")
+    
+    # Delete associated data first
+    db.query(Review).filter(Review.college_id == college_id).delete()
+    db.query(SavedCollege).filter(SavedCollege.college_id == college_id).delete()
+    
+    # Delete the college
+    db.delete(college)
+    db.commit()
+    
+    return {"message": "College deleted successfully"}
+
 @app.get("/health")
 def health_check():
     return {"status": "healthy", "timestamp": datetime.now()}
