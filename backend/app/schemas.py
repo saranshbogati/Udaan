@@ -134,7 +134,7 @@ class ReviewResponse(ReviewBase):
     id: int
     college_id: int
     user_id: int
-    user_name: str
+    user_name: str = ""
     images: Optional[List[str]] = []
     is_verified: bool = False
     likes_count: int = 0

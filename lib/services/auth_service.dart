@@ -96,6 +96,7 @@ class AuthService extends ChangeNotifier {
           _currentUser = user;
           _isLoggedIn = true;
           _apiService.setAuthToken(token);
+          ApiService.globalAuthToken = token;
 
           _isLoading = false;
           notifyListeners();
@@ -159,6 +160,7 @@ class AuthService extends ChangeNotifier {
             _currentUser = user;
             _isLoggedIn = true;
             _apiService.setAuthToken(token);
+            ApiService.globalAuthToken = token;
 
             _isLoading = false;
             notifyListeners();

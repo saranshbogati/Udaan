@@ -21,16 +21,25 @@ class ApiService {
   // static const String baseUrl = 'http://10.0.2.2:8000'; // For Android emulator
   // static const String baseUrl = 'https://your-backend-url.com'; // For production
 
+  static String? globalAuthToken;
+
   String? _authToken;
+
+  ApiService() {
+    // Initialize from global token if available
+    _authToken = globalAuthToken;
+  }
 
   // Set authentication token
   void setAuthToken(String token) {
     _authToken = token;
+    globalAuthToken = token;
   }
 
   // Clear authentication token
   void clearAuthToken() {
     _authToken = null;
+    globalAuthToken = null;
   }
 
   // Get headers with authentication
@@ -39,8 +48,9 @@ class ApiService {
       'Content-Type': 'application/json',
     };
 
-    if (_authToken != null) {
-      headers['Authorization'] = 'Bearer $_authToken';
+    final tokenToUse = _authToken ?? globalAuthToken;
+    if (tokenToUse != null) {
+      headers['Authorization'] = 'Bearer $tokenToUse';
     }
 
     return headers;
@@ -72,7 +82,11 @@ class ApiService {
         return ApiResult<Map<String, dynamic>>.error(errorMessage);
       }
     } catch (e) {
-      return ApiResult<Map<String, dynamic>>.error('Failed to parse response');
+      final snippet = response.body.length > 200
+          ? response.body.substring(0, 200)
+          : response.body;
+      return ApiResult<Map<String, dynamic>>.error(
+          'Failed to parse response (${response.statusCode}): $snippet');
     }
   }
 
@@ -375,16 +389,30 @@ class ApiService {
       final response = await http.post(
         Uri.parse('$baseUrl/reviews'),
         headers: _headers,
-        body: json.encode(review.toJson()),
+        body: json.encode(review.toCreateJson()),
       );
 
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = json.decode(response.body);
-        return ApiResult.success(Review.fromJson(data));
-      } else {
-        final error = json.decode(response.body);
-        return ApiResult.error(error['detail'] ?? 'Failed to create review');
+      final is2xx = response.statusCode >= 200 && response.statusCode < 300;
+      if (is2xx) {
+        final body = response.body.trim();
+        if (body.isEmpty) {
+          return ApiResult.success(review);
+        }
+        try {
+          final decoded = json.decode(body);
+          if (decoded is Map<String, dynamic>) {
+            return ApiResult.success(Review.fromJson(decoded));
+          } else {
+            return ApiResult.success(review);
+          }
+        } catch (_) {
+          return ApiResult.success(review);
+        }
       }
+
+      // Non-2xx: use generic handler for error message
+      final result = _handleResponse(response);
+      return ApiResult.error(result.error ?? 'Request failed');
     } catch (e) {
       return _handleError<Review>(e);
     }
