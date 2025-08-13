@@ -78,7 +78,11 @@ class ApiService {
         return ApiResult<Map<String, dynamic>>.error(errorMessage);
       }
     } catch (e) {
-      return ApiResult<Map<String, dynamic>>.error('Failed to parse response');
+      final snippet = response.body.length > 200
+          ? response.body.substring(0, 200)
+          : response.body;
+      return ApiResult<Map<String, dynamic>>.error(
+          'Failed to parse response (${response.statusCode}): $snippet');
     }
   }
 
@@ -204,12 +208,27 @@ class ApiService {
         body: json.encode(review.toCreateJson()),
       );
 
-      final result = _handleResponse(response);
-      if (result.isSuccess) {
-        return ApiResult<Review>.success(Review.fromJson(result.data!));
-      } else {
-        return ApiResult<Review>.error(result.error!);
+      final is2xx = response.statusCode >= 200 && response.statusCode < 300;
+      if (is2xx) {
+        final body = response.body.trim();
+        if (body.isEmpty) {
+          return ApiResult<Review>.success(review);
+        }
+        try {
+          final decoded = json.decode(body);
+          if (decoded is Map<String, dynamic>) {
+            return ApiResult<Review>.success(Review.fromJson(decoded));
+          } else {
+            return ApiResult<Review>.success(review);
+          }
+        } catch (_) {
+          return ApiResult<Review>.success(review);
+        }
       }
+
+      // Non-2xx: use generic handler for error message
+      final result = _handleResponse(response);
+      return ApiResult<Review>.error(result.error ?? 'Request failed');
     } catch (e) {
       return _handleError<Review>(e);
     }
