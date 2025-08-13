@@ -4,6 +4,7 @@ import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:udaan/services/api_service.dart';
 import '../../models/college.dart';
 import 'college_detail_screen.dart';
+import 'college_map_screen.dart';
 
 class CollegeListScreen extends StatefulWidget {
   const CollegeListScreen({super.key});
@@ -187,10 +188,15 @@ class _CollegeListScreenState extends State<CollegeListScreen> {
         title: const Text('Find Colleges in Nepal'),
         actions: [
           IconButton(
+            tooltip: 'Map View',
             onPressed: () {
-              // TODO: Add notifications or profile
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => CollegeMapScreen(colleges: _filteredColleges),
+                ),
+              );
             },
-            icon: const Icon(Icons.notifications_outlined),
+            icon: const Icon(Icons.map_outlined),
           ),
         ],
       ),

@@ -830,8 +830,13 @@ class _WriteReviewBottomSheetState extends State<WriteReviewBottomSheet> {
   final _contentController = TextEditingController();
   final _programController = TextEditingController();
   final _graduationYearController = TextEditingController();
+  final _prosController = TextEditingController();
+  final _consController = TextEditingController();
+  final _keywordsController = TextEditingController();
+  final _imageUrlsController = TextEditingController();
   double _rating = 0;
   bool _isSubmitting = false;
+  String _reviewerType = 'Student';
 
   @override
   void dispose() {
@@ -839,6 +844,10 @@ class _WriteReviewBottomSheetState extends State<WriteReviewBottomSheet> {
     _contentController.dispose();
     _programController.dispose();
     _graduationYearController.dispose();
+    _prosController.dispose();
+    _consController.dispose();
+    _keywordsController.dispose();
+    _imageUrlsController.dispose();
     super.dispose();
   }
 
@@ -986,30 +995,81 @@ class _WriteReviewBottomSheetState extends State<WriteReviewBottomSheet> {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'Program (Optional)',
+                      'Reviewer Type',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        for (final t in ['Alumnus', 'Student', 'Parent'])
+                          ChoiceChip(
+                            label: Text(t),
+                            selected: _reviewerType == t,
+                            onSelected: (selected) {
+                              setState(() => _reviewerType = t);
+                            },
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Pros (Optional)',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
                     ),
                     const SizedBox(height: 8),
                     TextFormField(
-                      controller: _programController,
+                      controller: _prosController,
+                      maxLines: 2,
                       decoration: const InputDecoration(
-                        hintText: 'e.g. Computer Science, MBA...',
+                        hintText: 'Comma separated positives (e.g. Great faculty, Good labs)',
                       ),
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'Graduation Year (Optional)',
+                      'Cons (Optional)',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
                     ),
                     const SizedBox(height: 8),
                     TextFormField(
-                      controller: _graduationYearController,
+                      controller: _consController,
+                      maxLines: 2,
                       decoration: const InputDecoration(
-                        hintText: 'e.g. 2023, Current...',
+                        hintText: 'Comma separated negatives (e.g. Crowded, Limited parking)',
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Keywords (Optional)',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _keywordsController,
+                      decoration: const InputDecoration(
+                        hintText: 'Comma separated tags (e.g. hostel, placement, sports)',
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Image URLs (Optional)',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _imageUrlsController,
+                      decoration: const InputDecoration(
+                        hintText: 'Comma separated image URLs (temporary input)',
                       ),
                     ),
                     const SizedBox(height: 24),
@@ -1054,10 +1114,26 @@ class _WriteReviewBottomSheetState extends State<WriteReviewBottomSheet> {
         _isSubmitting = true;
       });
 
+      // Compose extended content with pros/cons/keywords for now
+      final pros = _prosController.text.trim();
+      final cons = _consController.text.trim();
+      final keywords = _keywordsController.text.trim();
+      final extra = [
+        if (pros.isNotEmpty) 'Pros: $pros',
+        if (cons.isNotEmpty) 'Cons: $cons',
+        if (keywords.isNotEmpty) 'Tags: $keywords',
+        'Reviewer: $_reviewerType',
+      ].join('\n');
+
+      final combinedContent = [
+        _contentController.text.trim(),
+        if (extra.isNotEmpty) '\n\n$extra',
+      ].join();
+
       await widget.onReviewSubmitted(
         rating: _rating,
         title: _titleController.text.trim(),
-        content: _contentController.text.trim(),
+        content: combinedContent,
         program: _programController.text.trim().isEmpty
             ? null
             : _programController.text.trim(),
