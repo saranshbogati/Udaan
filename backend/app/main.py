@@ -2,12 +2,13 @@ from fastapi import FastAPI, Depends, HTTPException, status, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import func
+from sqlalchemy import and_, or_, desc
 from typing import List, Optional
 from datetime import timedelta, datetime
 import math
 
 from database import get_db, engine
-from models import Base, User, College, Review, ReviewLike
+from models import Base, User, College, Review, ReviewLike, SavedCollege
 from schemas import *
 from auth import *
 
@@ -86,6 +87,202 @@ def read_users_me(current_user: User = Depends(get_current_active_user)):
     return current_user
 
 
+# Profile endpoints
+@app.get("/profile/stats", response_model=UserStats)
+def get_user_stats(current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):
+    # Get total reviews by user
+    total_reviews = db.query(Review).filter(Review.user_id == current_user.id).count()
+    
+    # Get total likes received on user's reviews
+    total_likes_received = (
+        db.query(func.sum(Review.likes_count))
+        .filter(Review.user_id == current_user.id)
+        .scalar() or 0
+    )
+    
+    # People helped is same as total likes received for now
+    people_helped = total_likes_received
+    
+    # Get saved colleges count
+    saved_colleges_count = db.query(SavedCollege).filter(SavedCollege.user_id == current_user.id).count()
+    
+    return UserStats(
+        total_reviews=total_reviews,
+        total_likes_received=total_likes_received,
+        people_helped=people_helped,
+        saved_colleges_count=saved_colleges_count,
+        joined_date=current_user.created_at
+    )
+
+
+@app.put("/profile", response_model=UserResponse)
+def update_profile(
+    user_update: UserUpdate,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    # Check if email already exists (if being updated)
+    if user_update.email and user_update.email != current_user.email:
+        existing_user = db.query(User).filter(User.email == user_update.email).first()
+        if existing_user:
+            raise HTTPException(status_code=400, detail="Email already exists")
+    
+    # Update user fields
+    for field, value in user_update.dict(exclude_unset=True).items():
+        setattr(current_user, field, value)
+    
+    db.commit()
+    db.refresh(current_user)
+    return current_user
+
+
+@app.get("/profile/reviews", response_model=ReviewListResponse)
+def get_user_reviews(
+    page: int = Query(1, ge=1),
+    limit: int = Query(10, ge=1, le=100),
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    query = (
+        db.query(Review)
+        .filter(Review.user_id == current_user.id)
+        .join(College)
+        .order_by(desc(Review.created_at))
+    )
+    
+    total = query.count()
+    offset = (page - 1) * limit
+    reviews = query.offset(offset).limit(limit).all()
+    
+    # Convert to response format
+    review_responses = []
+    for review in reviews:
+        review_response = ReviewResponse.from_orm(review)
+        review_response.user_name = current_user.username
+        review_response.college_name = review.college.name
+        review_response.is_owned_by_current_user = True
+        review_response.is_liked_by_current_user = False
+        review_responses.append(review_response)
+    
+    pages = math.ceil(total / limit)
+    return ReviewListResponse(
+        reviews=review_responses, total=total, page=page, pages=pages
+    )
+
+
+@app.get("/profile/liked-reviews", response_model=ReviewListResponse)
+def get_liked_reviews(
+    page: int = Query(1, ge=1),
+    limit: int = Query(10, ge=1, le=100),
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    # Get reviews that the current user has liked
+    query = (
+        db.query(Review)
+        .join(ReviewLike, Review.id == ReviewLike.review_id)
+        .join(User, Review.user_id == User.id)
+        .join(College, Review.college_id == College.id)
+        .filter(ReviewLike.user_id == current_user.id)
+        .order_by(desc(ReviewLike.created_at))
+    )
+    
+    total = query.count()
+    offset = (page - 1) * limit
+    reviews = query.offset(offset).limit(limit).all()
+    
+    # Convert to response format
+    review_responses = []
+    for review in reviews:
+        review_response = ReviewResponse.from_orm(review)
+        review_response.user_name = review.user.username
+        review_response.college_name = review.college.name
+        review_response.is_liked_by_current_user = True
+        review_response.is_owned_by_current_user = review.user_id == current_user.id
+        review_responses.append(review_response)
+    
+    pages = math.ceil(total / limit)
+    return ReviewListResponse(
+        reviews=review_responses, total=total, page=page, pages=pages
+    )
+
+
+@app.get("/profile/saved-colleges", response_model=SavedCollegeListResponse)
+def get_saved_colleges(
+    page: int = Query(1, ge=1),
+    limit: int = Query(10, ge=1, le=100),
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    query = (
+        db.query(SavedCollege)
+        .join(College)
+        .filter(SavedCollege.user_id == current_user.id)
+        .order_by(desc(SavedCollege.created_at))
+    )
+    
+    total = query.count()
+    offset = (page - 1) * limit
+    saved_colleges = query.offset(offset).limit(limit).all()
+    
+    # Convert to response format
+    saved_college_responses = []
+    for saved_college in saved_colleges:
+        response = SavedCollegeResponse(
+            id=saved_college.id,
+            user_id=saved_college.user_id,
+            college_id=saved_college.college_id,
+            college_name=saved_college.college.name,
+            college_location=saved_college.college.location,
+            college_logo_url=saved_college.college.logo_url,
+            college_average_rating=saved_college.college.average_rating,
+            college_total_reviews=saved_college.college.total_reviews,
+            saved_at=saved_college.created_at
+        )
+        saved_college_responses.append(response)
+    
+    pages = math.ceil(total / limit)
+    return SavedCollegeListResponse(
+        saved_colleges=saved_college_responses, total=total, page=page, pages=pages
+    )
+
+
+# College bookmark endpoints
+@app.post("/colleges/{college_id}/bookmark")
+def toggle_college_bookmark(
+    college_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    # Check if college exists
+    college = db.query(College).filter(College.id == college_id).first()
+    if not college:
+        raise HTTPException(status_code=404, detail="College not found")
+    
+    # Check if already saved
+    existing_save = (
+        db.query(SavedCollege)
+        .filter(
+            SavedCollege.college_id == college_id,
+            SavedCollege.user_id == current_user.id
+        )
+        .first()
+    )
+    
+    if existing_save:
+        # Remove bookmark
+        db.delete(existing_save)
+        saved = False
+    else:
+        # Add bookmark
+        new_save = SavedCollege(college_id=college_id, user_id=current_user.id)
+        db.add(new_save)
+        saved = True
+    
+    db.commit()
+    return {"saved": saved, "college_id": college_id}
+
+
 # College endpoints
 @app.post("/colleges", response_model=CollegeResponse)
 def create_college(
@@ -108,6 +305,7 @@ def get_colleges(
     city: Optional[str] = None,
     state: Optional[str] = None,
     db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user),
 ):
     query = db.query(College)
 
@@ -126,17 +324,58 @@ def get_colleges(
     offset = (page - 1) * limit
     colleges = query.offset(offset).limit(limit).all()
 
+    # Convert to response format with bookmark status
+    college_responses = []
+    for college in colleges:
+        college_response = CollegeResponse.from_orm(college)
+        
+        # Check if saved by current user
+        if current_user:
+            is_saved = (
+                db.query(SavedCollege)
+                .filter(
+                    SavedCollege.college_id == college.id,
+                    SavedCollege.user_id == current_user.id
+                )
+                .first() is not None
+            )
+            college_response.is_saved_by_current_user = is_saved
+        else:
+            college_response.is_saved_by_current_user = False
+        
+        college_responses.append(college_response)
+
     pages = math.ceil(total / limit)
-    print("colleges are ", colleges)
-    return CollegeListResponse(colleges=colleges, total=total, page=page, pages=pages)
+    return CollegeListResponse(colleges=college_responses, total=total, page=page, pages=pages)
 
 
 @app.get("/colleges/{college_id}", response_model=CollegeResponse)
-def get_college(college_id: int, db: Session = Depends(get_db)):
+def get_college(
+    college_id: int, 
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user)
+):
     college = db.query(College).filter(College.id == college_id).first()
     if not college:
         raise HTTPException(status_code=404, detail="College not found")
-    return college
+    
+    college_response = CollegeResponse.from_orm(college)
+    
+    # Check if saved by current user
+    if current_user:
+        is_saved = (
+            db.query(SavedCollege)
+            .filter(
+                SavedCollege.college_id == college.id,
+                SavedCollege.user_id == current_user.id
+            )
+            .first() is not None
+        )
+        college_response.is_saved_by_current_user = is_saved
+    else:
+        college_response.is_saved_by_current_user = False
+    
+    return college_response
 
 
 # Review endpoints
@@ -183,9 +422,103 @@ def create_review(
     # Return review with user name
     response = ReviewResponse.from_orm(db_review)
     response.user_name = current_user.username
+    response.college_name = college.name
     response.is_liked_by_current_user = False
+    response.is_owned_by_current_user = True
 
     return response
+
+
+@app.put("/reviews/{review_id}", response_model=ReviewResponse)
+def update_review(
+    review_id: int,
+    review_update: ReviewUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    # Get the review
+    review = db.query(Review).filter(Review.id == review_id).first()
+    if not review:
+        raise HTTPException(status_code=404, detail="Review not found")
+    
+    # Check if user owns the review
+    if review.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to edit this review")
+    
+    # Update review fields
+    for field, value in review_update.dict(exclude_unset=True).items():
+        setattr(review, field, value)
+    
+    # Update college average rating if rating changed
+    if review_update.rating is not None:
+        college = db.query(College).filter(College.id == review.college_id).first()
+        avg_rating = (
+            db.query(func.avg(Review.rating))
+            .filter(Review.college_id == review.college_id)
+            .scalar()
+        )
+        college.average_rating = round(avg_rating, 1)
+    
+    db.commit()
+    db.refresh(review)
+    
+    # Return updated review
+    response = ReviewResponse.from_orm(review)
+    response.user_name = current_user.username
+    response.college_name = review.college.name
+    response.is_owned_by_current_user = True
+    
+    # Check if current user liked this review
+    liked = (
+        db.query(ReviewLike)
+        .filter(
+            ReviewLike.review_id == review.id,
+            ReviewLike.user_id == current_user.id,
+        )
+        .first()
+    )
+    response.is_liked_by_current_user = liked is not None
+    
+    return response
+
+
+@app.delete("/reviews/{review_id}")
+def delete_review(
+    review_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    # Get the review
+    review = db.query(Review).filter(Review.id == review_id).first()
+    if not review:
+        raise HTTPException(status_code=404, detail="Review not found")
+    
+    # Check if user owns the review
+    if review.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this review")
+    
+    college_id = review.college_id
+    
+    # Delete the review (cascade will handle review likes)
+    db.delete(review)
+    
+    # Update college ratings
+    college = db.query(College).filter(College.id == college_id).first()
+    college.total_reviews -= 1
+    
+    if college.total_reviews > 0:
+        avg_rating = (
+            db.query(func.avg(Review.rating))
+            .filter(Review.college_id == college_id)
+            .scalar()
+        )
+        college.average_rating = round(avg_rating, 1)
+    else:
+        college.average_rating = 0.0
+    
+    db.commit()
+    
+    return {"message": "Review deleted successfully"}
 
 
 @app.get("/colleges/{college_id}/reviews", response_model=ReviewListResponse)
@@ -213,6 +546,7 @@ def get_college_reviews(
     for review in reviews:
         review_response = ReviewResponse.from_orm(review)
         review_response.user_name = review.user.username
+        review_response.college_name = college.name
 
         # Check if current user liked this review
         if current_user:
@@ -225,8 +559,10 @@ def get_college_reviews(
                 .first()
             )
             review_response.is_liked_by_current_user = liked is not None
+            review_response.is_owned_by_current_user = review.user_id == current_user.id
         else:
             review_response.is_liked_by_current_user = False
+            review_response.is_owned_by_current_user = False
 
         review_responses.append(review_response)
 

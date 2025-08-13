@@ -14,6 +14,12 @@ class UserCreate(UserBase):
     password: str
 
 
+class UserUpdate(BaseModel):
+    full_name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    profile_picture: Optional[str] = None
+
+
 class UserResponse(UserBase):
     id: int
     is_active: bool
@@ -27,6 +33,38 @@ class UserResponse(UserBase):
 
 class UserInDB(UserResponse):
     hashed_password: str
+
+
+class UserStats(BaseModel):
+    total_reviews: int
+    total_likes_received: int
+    people_helped: int
+    saved_colleges_count: int
+    joined_date: datetime
+
+
+# Saved College Schemas
+class SavedCollegeBase(BaseModel):
+    college_id: int
+
+
+class SavedCollegeCreate(SavedCollegeBase):
+    pass
+
+
+class SavedCollegeResponse(BaseModel):
+    id: int
+    user_id: int
+    college_id: int
+    college_name: str
+    college_location: Optional[str] = None
+    college_logo_url: Optional[str] = None
+    college_average_rating: float
+    college_total_reviews: int
+    saved_at: datetime
+
+    class Config:
+        from_attributes = True
 
 
 # College Schemas
@@ -62,6 +100,7 @@ class CollegeResponse(CollegeBase):
     average_rating: float = 0.0
     total_reviews: int = 0
     college_metadata: Optional[Dict[str, Any]] = {}
+    is_saved_by_current_user: Optional[bool] = False
     created_at: datetime
 
     class Config:
@@ -82,6 +121,15 @@ class ReviewCreate(ReviewBase):
     images: Optional[List[str]] = []
 
 
+class ReviewUpdate(BaseModel):
+    rating: Optional[float] = None
+    title: Optional[str] = None
+    content: Optional[str] = None
+    program: Optional[str] = None
+    graduation_year: Optional[str] = None
+    images: Optional[List[str]] = None
+
+
 class ReviewResponse(ReviewBase):
     id: int
     college_id: int
@@ -91,6 +139,8 @@ class ReviewResponse(ReviewBase):
     is_verified: bool = False
     likes_count: int = 0
     is_liked_by_current_user: bool = False
+    is_owned_by_current_user: bool = False
+    college_name: Optional[str] = None
     created_at: datetime
 
     class Config:
@@ -134,3 +184,10 @@ class CollegeListResponse(BaseModel):
 
     class config:
         from_attributes: True
+
+
+class SavedCollegeListResponse(BaseModel):
+    saved_colleges: List[SavedCollegeResponse]
+    total: int
+    page: int
+    pages: int
