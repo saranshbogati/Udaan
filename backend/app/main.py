@@ -167,6 +167,7 @@ def create_review(
     # Create review
     db_review = Review(**review.dict(), user_id=current_user.id)
     db.add(db_review)
+    db.flush()  # Ensure the review is visible to subsequent queries
 
     # Update college ratings
     college.total_reviews += 1
@@ -175,7 +176,10 @@ def create_review(
         .filter(Review.college_id == review.college_id)
         .scalar()
     )
-    college.average_rating = round(avg_rating, 1)
+    if avg_rating is None:
+        college.average_rating = round(review.rating, 1)
+    else:
+        college.average_rating = round(avg_rating, 1)
 
     db.commit()
     db.refresh(db_review)

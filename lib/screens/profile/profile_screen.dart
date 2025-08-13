@@ -108,10 +108,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       height: 100,
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) {
+                        final initials = (user.name.isNotEmpty ? user.name[0] : '?').toUpperCase();
                         return Text(
-                          user.name,
+                          initials,
                           style: const TextStyle(
-                            fontSize: 32,
+                            fontSize: 36,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
@@ -119,13 +120,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       },
                     ),
                   )
-                : Text(
-                    user.name,
-                    style: const TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
+                : Builder(
+                    builder: (context) {
+                      final initials = (user.name.isNotEmpty ? user.name[0] : '?').toUpperCase();
+                      return Text(
+                        initials,
+                        style: const TextStyle(
+                          fontSize: 36,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      );
+                    },
                   ),
           ),
           const SizedBox(height: 16),

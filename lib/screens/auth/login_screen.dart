@@ -91,32 +91,22 @@ class _LoginScreenState extends State<LoginScreen>
               const SizedBox(height: 40),
 
               // Tab Bar
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(8),
+              Theme(
+                data: Theme.of(context).copyWith(
+                  splashFactory: NoSplash.splashFactory,
+                  highlightColor: Colors.transparent,
+                  splashColor: Colors.transparent,
                 ),
-                child: Theme(
-                  data: Theme.of(context).copyWith(
-                    splashFactory: NoSplash.splashFactory,
-                    highlightColor: Colors.transparent,
-                    splashColor: Colors.transparent,
-                  ),
-                  child: TabBar(
-                    controller: _tabController,
-                    labelColor: Theme.of(context).primaryColor,
-                    unselectedLabelColor: Colors.grey[600],
-                    overlayColor: MaterialStateProperty.all(Colors.transparent),
-                    indicator: BoxDecoration(
-                      color: Colors.transparent,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Theme.of(context).primaryColor, width: 2),
-                    ),
-                    tabs: const [
-                      Tab(text: 'Login'),
-                      Tab(text: 'Register'),
-                    ],
-                  ),
+                child: TabBar
+                  (
+                  controller: _tabController,
+                  labelColor: Theme.of(context).primaryColor,
+                  unselectedLabelColor: Colors.grey[600],
+                  indicatorColor: Theme.of(context).primaryColor,
+                  tabs: const [
+                    Tab(text: 'Login'),
+                    Tab(text: 'Register'),
+                  ],
                 ),
               ),
 

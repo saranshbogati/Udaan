@@ -201,7 +201,7 @@ class ApiService {
       final response = await http.post(
         Uri.parse('$baseUrl/reviews'),
         headers: _headers,
-        body: json.encode(review.toJson()),
+        body: json.encode(review.toCreateJson()),
       );
 
       final result = _handleResponse(response);
