@@ -21,7 +21,7 @@ class CollegeMapScreen extends StatelessWidget {
             width: 40,
             height: 40,
             point: LatLng(lat.toDouble(), lng.toDouble()),
-            builder: (ctx) => Tooltip(
+            child: Tooltip(
               message: c.name,
               child: const Icon(Icons.location_on, color: Colors.red, size: 32),
             ),
