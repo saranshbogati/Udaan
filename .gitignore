@@ -43,3 +43,14 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Admin Dashboard - Node.js
+admin-dashboard/node_modules/
+admin-dashboard/build/
+admin-dashboard/.env.local
+admin-dashboard/.env.development.local
+admin-dashboard/.env.test.local
+admin-dashboard/.env.production.local
+admin-dashboard/npm-debug.log*
+admin-dashboard/yarn-debug.log*
+admin-dashboard/yarn-error.log*
