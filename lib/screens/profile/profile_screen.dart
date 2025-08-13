@@ -8,7 +8,7 @@ import '../../models/review.dart';
 import '../../models/saved_college.dart';
 import '../../models/college.dart';
 import '../../widgets/review_card.dart';
-import '../college/college_detail_screen.dart';
+import '../college/college_detail_screen.dart' hide ReviewCard;
 import 'edit_profile_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -676,7 +676,8 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  Widget _buildStatItem(String label, String value, IconData icon, Color color) {
+  Widget _buildStatItem(
+      String label, String value, IconData icon, Color color) {
     return Column(
       children: [
         Container(
@@ -709,7 +710,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   Widget _buildAchievementsCard() {
     final joinedDate = _userStats!.joinedDate;
     final membershipDuration = DateTime.now().difference(joinedDate).inDays;
-    
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -765,7 +766,8 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  Widget _buildAchievementItem(String title, String subtitle, IconData icon, Color color) {
+  Widget _buildAchievementItem(
+      String title, String subtitle, IconData icon, Color color) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
@@ -807,8 +809,18 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   String _formatDate(DateTime date) {
     final months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
     ];
     return '${months[date.month - 1]} ${date.year}';
   }
@@ -818,7 +830,8 @@ class _ProfileScreenState extends State<ProfileScreen>
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Review'),
-        content: const Text('Are you sure you want to delete this review? This action cannot be undone.'),
+        content: const Text(
+            'Are you sure you want to delete this review? This action cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),

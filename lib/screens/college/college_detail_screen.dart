@@ -336,10 +336,10 @@ class _CollegeDetailScreenState extends State<CollegeDetailScreen>
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: (_college.collegeType ?? '').toLowerCase() ==
-                          'university'
-                      ? Colors.blue.shade100
-                      : Colors.green.shade100,
+                  color:
+                      (_college.collegeType ?? '').toLowerCase() == 'university'
+                          ? Colors.blue.shade100
+                          : Colors.green.shade100,
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Text(
@@ -554,8 +554,7 @@ class _CollegeDetailScreenState extends State<CollegeDetailScreen>
               'Email',
               _college.email!,
             ),
-          if (_college.website != null &&
-              _college.website!.isNotEmpty)
+          if (_college.website != null && _college.website!.isNotEmpty)
             _buildContactItem(
               Icons.web_outlined,
               'Website',
@@ -1004,7 +1003,7 @@ class _WriteReviewBottomSheetState extends State<WriteReviewBottomSheet> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
-                              _college.name,
+                              widget.college.name,
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                               ),
@@ -1119,7 +1118,8 @@ class _WriteReviewBottomSheetState extends State<WriteReviewBottomSheet> {
                       controller: _prosController,
                       maxLines: 2,
                       decoration: const InputDecoration(
-                        hintText: 'Comma separated positives (e.g. Great faculty, Good labs)',
+                        hintText:
+                            'Comma separated positives (e.g. Great faculty, Good labs)',
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -1134,7 +1134,8 @@ class _WriteReviewBottomSheetState extends State<WriteReviewBottomSheet> {
                       controller: _consController,
                       maxLines: 2,
                       decoration: const InputDecoration(
-                        hintText: 'Comma separated negatives (e.g. Crowded, Limited parking)',
+                        hintText:
+                            'Comma separated negatives (e.g. Crowded, Limited parking)',
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -1148,7 +1149,8 @@ class _WriteReviewBottomSheetState extends State<WriteReviewBottomSheet> {
                     TextFormField(
                       controller: _keywordsController,
                       decoration: const InputDecoration(
-                        hintText: 'Comma separated tags (e.g. hostel, placement, sports)',
+                        hintText:
+                            'Comma separated tags (e.g. hostel, placement, sports)',
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -1162,7 +1164,8 @@ class _WriteReviewBottomSheetState extends State<WriteReviewBottomSheet> {
                     TextFormField(
                       controller: _imageUrlsController,
                       decoration: const InputDecoration(
-                        hintText: 'Comma separated image URLs (temporary input)',
+                        hintText:
+                            'Comma separated image URLs (temporary input)',
                       ),
                     ),
                     const SizedBox(height: 24),

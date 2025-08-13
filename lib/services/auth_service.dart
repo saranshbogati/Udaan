@@ -164,7 +164,8 @@ class AuthService extends ChangeNotifier {
 
             _isLoading = false;
             notifyListeners();
-            return AuthResult(success: true, message: 'Registration successful');
+            return AuthResult(
+                success: true, message: 'Registration successful');
           } else {
             // Fallback to login if token verification failed
             final loginResult = await login(username, password);
@@ -251,9 +252,13 @@ class AuthService extends ChangeNotifier {
   }
 
   // Update current user data
-  void updateUser(User user) {
+  void updateUser(User user) async {
     _currentUser = user;
-    _saveUserData(user);
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('jwt_token');
+    if (token != null) {
+      await _saveUserData(user, token);
+    }
     notifyListeners();
   }
 }
