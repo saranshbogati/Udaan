@@ -290,46 +290,55 @@ class _CollegeListScreenState extends State<CollegeListScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    '${_filteredColleges.length} colleges found',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.grey[600],
-                          fontWeight: FontWeight.w500,
-                        ),
+                  Expanded(
+                    child: Text(
+                      '${_filteredColleges.length} colleges found',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w500,
+                          ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Sorting chips (top-right)
-                      ChoiceChip(
-                        label: const Text('Most Reviewed'),
-                        selected: _sortMode == 'most',
-                        onSelected: (selected) {
-                          setState(() {
-                            _sortMode = selected ? 'most' : 'weighted';
-                            _applySorting();
-                          });
-                        },
+                  Flexible(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (_filteredColleges.any((c) => c.totalReviews > 0)) ...[
+                            ChoiceChip(
+                              label: const Text('Most Reviewed'),
+                              selected: _sortMode == 'most',
+                              onSelected: (selected) {
+                                setState(() {
+                                  _sortMode = selected ? 'most' : 'weighted';
+                                  _applySorting();
+                                });
+                              },
+                            ),
+                            const SizedBox(width: 8),
+                            ChoiceChip(
+                              label: const Text('Highest Reviewed'),
+                              selected: _sortMode == 'highest',
+                              onSelected: (selected) {
+                                setState(() {
+                                  _sortMode = selected ? 'highest' : 'weighted';
+                                  _applySorting();
+                                });
+                              },
+                            ),
+                            const SizedBox(width: 8),
+                          ],
+                          IconButton(
+                            onPressed: _refreshColleges,
+                            icon: const Icon(Icons.refresh, size: 18),
+                            color: Theme.of(context).primaryColor,
+                            tooltip: 'Refresh',
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      ChoiceChip(
-                        label: const Text('Highest Reviewed'),
-                        selected: _sortMode == 'highest',
-                        onSelected: (selected) {
-                          setState(() {
-                            _sortMode = selected ? 'highest' : 'weighted';
-                            _applySorting();
-                          });
-                        },
-                      ),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        onPressed: _refreshColleges,
-                        icon: const Icon(Icons.refresh, size: 18),
-                        color: Theme.of(context).primaryColor,
-                        tooltip: 'Refresh',
-                      ),
-                    ],
+                    ),
                   ),
                 ],
               ),
