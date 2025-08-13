@@ -185,11 +185,22 @@ def create_review(
     db.refresh(db_review)
 
     # Return review with user name
-    response = ReviewResponse.from_orm(db_review)
-    response.user_name = current_user.username
-    response.is_liked_by_current_user = False
-
-    return response
+    return {
+        "id": db_review.id,
+        "college_id": db_review.college_id,
+        "user_id": db_review.user_id,
+        "user_name": current_user.username,
+        "rating": db_review.rating,
+        "title": db_review.title,
+        "content": db_review.content,
+        "program": db_review.program,
+        "graduation_year": db_review.graduation_year,
+        "images": db_review.images or [],
+        "is_verified": db_review.is_verified,
+        "likes_count": db_review.likes_count,
+        "is_liked_by_current_user": False,
+        "created_at": db_review.created_at,
+    }
 
 
 @app.get("/colleges/{college_id}/reviews", response_model=ReviewListResponse)
